@@ -1,0 +1,2 @@
+donde estudiante compra libro
+cuando profesor lee cuaderno
