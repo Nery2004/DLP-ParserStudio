@@ -1,0 +1,11 @@
+# Basic arithmetic token rules for DLP-ParserStudio.
+# Priority is defined by order: the first rule wins ties of equal length.
+
+NUMBER      [0-9]+
+PLUS        \+
+MINUS       -
+STAR        \*
+SLASH       /
+LPAREN      \(
+RPAREN      \)
+WHITESPACE  [ \t\r\n]+  skip
