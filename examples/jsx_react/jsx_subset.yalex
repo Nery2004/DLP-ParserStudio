@@ -1,0 +1,13 @@
+# Lexer educativo para un subconjunto JSX.
+# El orden importa: COMPONENT aparece antes que TAG para distinguir App/Input de div.
+
+OPEN_CLOSE     </
+OPEN           <
+SELF_CLOSE     />
+CLOSE          >
+EQUALS         =
+STRING         "[^"]*"
+COMPONENT      [A-Z][A-Za-z0-9_]*
+TAG            [a-z][A-Za-z0-9_]*
+TEXT           [A-Za-z0-9][A-Za-z0-9.,!?-]*
+WS             [ \t\r\n]+  skip

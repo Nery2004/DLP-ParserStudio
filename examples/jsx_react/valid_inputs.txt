@@ -1,0 +1,4 @@
+<App></App>
+<div>Hola</div>
+<App name="demo"><div>Hola</div><Input value="x" /></App>
+<Input />

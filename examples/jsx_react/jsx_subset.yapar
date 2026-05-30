@@ -1,0 +1,24 @@
+%token OPEN_CLOSE OPEN SELF_CLOSE CLOSE EQUALS STRING COMPONENT TAG TEXT
+%ignore WS
+%start document
+
+%%
+document : element ;
+element : normal_element
+        | self_closing_element ;
+normal_element : open_tag children close_tag ;
+self_closing_element : OPEN element_name props SELF_CLOSE ;
+open_tag : OPEN element_name props CLOSE ;
+close_tag : OPEN_CLOSE element_name CLOSE ;
+element_name : COMPONENT
+             | TAG ;
+props : prop props
+      | epsilon ;
+prop : TAG EQUALS STRING ;
+children : child children
+         | epsilon ;
+child : element
+      | text ;
+text : TAG
+     | COMPONENT
+     | TEXT ;

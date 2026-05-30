@@ -1,0 +1,4 @@
+App></App>
+<div class=main></div>
+<App><div>Hola</div>
+<Input value />
