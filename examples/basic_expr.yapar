@@ -1,0 +1,8 @@
+%token ID NUMBER PLUS TIMES LPAREN RPAREN
+%ignore WS
+%start expr
+
+%%
+expr : term exprp ;
+exprp : PLUS term exprp | epsilon ;
+term : NUMBER | ID | LPAREN expr RPAREN ;
