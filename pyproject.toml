@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dlp-parserstudio"
+version = "0.1.0"
+description = "Ecosistema educativo de analisis lexico y sintactico para Diseno de Lenguajes."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "DLP-ParserStudio Team" }
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0"
+]
+
+[project.scripts]
+dlp = "dlp_parserstudio.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
