@@ -2,9 +2,9 @@
 
 DLP-ParserStudio es un ecosistema educativo en Python para explorar análisis léxico y sintáctico como parte del proyecto final de Diseño de Lenguajes.
 
-El objetivo del proyecto es servir como una base limpia y extensible para construir herramientas relacionadas con analizadores, gramáticas, visualización y experimentación desde consola o desde una futura interfaz de estudio.
+El objetivo del proyecto es servir como una base limpia y extensible para construir herramientas relacionadas con analizadores, gramáticas, visualización y experimentación desde consola o desde un IDE web local.
 
-> Estado actual: estructura inicial ejecutable. Todavía no se implementan YALex ni YAPar.
+> Estado actual: incluye núcleo de gramáticas, lexer educativo, loaders YAPar/MiniANTLR, analizadores LL(1), LR(0), SLR(1), LALR(1), árboles sintácticos e IDE web simple.
 
 ## Estructura
 
@@ -47,6 +47,15 @@ python3 -m pip install -e .
 ```bash
 dlp --help
 dlp version
+dlp ide
+```
+
+El IDE web queda disponible por defecto en `http://127.0.0.1:8000`.
+
+También puedes elegir host, puerto y recarga automática:
+
+```bash
+dlp ide --host 127.0.0.1 --port 8000 --reload
 ```
 
 ## Tests

@@ -11,7 +11,10 @@ requires-python = ">=3.10"
 authors = [
   { name = "DLP-ParserStudio Team" }
 ]
-dependencies = []
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn>=0.30.0"
+]
 
 [project.optional-dependencies]
 dev = [
@@ -23,6 +26,9 @@ dlp = "dlp_parserstudio.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+dlp_parserstudio = ["ide/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DLP-ParserStudio IDE</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>DLP-ParserStudio</h1>
+      <div class="controls">
+        <label>
+          Metodo
+          <select id="method">
+            <option>LL(1)</option>
+            <option>LR(0)</option>
+            <option selected>SLR(1)</option>
+            <option>LALR(1)</option>
+          </select>
+        </label>
+        <button id="run-button" type="button">Ejecutar</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="editors">
+        <div class="editor-block">
+          <div class="editor-header">
+            <h2>YALex</h2>
+            <input id="yalex-file" type="file" accept=".yalex,.txt" />
+          </div>
+          <textarea id="yalex-text" spellcheck="false"></textarea>
+        </div>
+
+        <div class="editor-block">
+          <div class="editor-header">
+            <h2>YAPar</h2>
+            <input id="yapar-file" type="file" accept=".yapar,.txt" />
+          </div>
+          <textarea id="yapar-text" spellcheck="false"></textarea>
+        </div>
+
+        <div class="editor-block input-block">
+          <div class="editor-header">
+            <h2>Input</h2>
+            <input id="input-file" type="file" accept=".txt" />
+          </div>
+          <textarea id="input-text" spellcheck="false"></textarea>
+        </div>
+      </section>
+
+      <section class="status-line">
+        <strong id="accepted-label">Sin ejecutar</strong>
+        <span id="summary-label"></span>
+      </section>
+
+      <section class="results-grid">
+        <article>
+          <h2>Tokens</h2>
+          <pre id="tokens-output"></pre>
+        </article>
+        <article>
+          <h2>FIRST / FOLLOW</h2>
+          <pre id="first-follow-output"></pre>
+        </article>
+        <article>
+          <h2>Automata LR(0)</h2>
+          <pre id="automaton-output"></pre>
+        </article>
+        <article>
+          <h2>Tablas</h2>
+          <pre id="tables-output"></pre>
+        </article>
+        <article>
+          <h2>Pasos</h2>
+          <pre id="steps-output"></pre>
+        </article>
+        <article>
+          <h2>Conflictos</h2>
+          <pre id="conflicts-output"></pre>
+        </article>
+        <article>
+          <h2>Ramas paralelas</h2>
+          <pre id="branches-output"></pre>
+        </article>
+        <article>
+          <h2>Arbol sintactico</h2>
+          <div class="tabs">
+            <button class="tab active" data-tree-view="json" type="button">JSON</button>
+            <button class="tab" data-tree-view="dot" type="button">DOT</button>
+            <button class="tab" data-tree-view="text" type="button">Texto</button>
+          </div>
+          <pre id="tree-output"></pre>
+        </article>
+        <article class="errors-panel">
+          <h2>Errores</h2>
+          <pre id="errors-output"></pre>
+        </article>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

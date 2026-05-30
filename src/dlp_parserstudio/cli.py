@@ -21,11 +21,31 @@ def build_parser() -> argparse.ArgumentParser:
     )
     version_parser.set_defaults(func=show_version)
 
+    ide_parser = subparsers.add_parser(
+        "ide",
+        help="Inicia el IDE web local de DLP-ParserStudio.",
+    )
+    ide_parser.add_argument("--host", default="127.0.0.1", help="Host del servidor.")
+    ide_parser.add_argument("--port", default=8000, type=int, help="Puerto del servidor.")
+    ide_parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Reinicia el servidor automaticamente al cambiar archivos.",
+    )
+    ide_parser.set_defaults(func=run_ide)
+
     return parser
 
 
 def show_version(_args: argparse.Namespace) -> int:
     print(f"DLP-ParserStudio {__version__}")
+    return 0
+
+
+def run_ide(args: argparse.Namespace) -> int:
+    from dlp_parserstudio.ide.app import run_server
+
+    run_server(host=args.host, port=args.port, reload=args.reload)
     return 0
 
 
