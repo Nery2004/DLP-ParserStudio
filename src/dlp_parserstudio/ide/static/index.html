@@ -8,10 +8,16 @@
   </head>
   <body>
     <header class="topbar">
-      <h1>DLP-ParserStudio</h1>
+      <div class="brand">
+        <div class="brand-mark">DLP</div>
+        <div>
+          <p class="eyebrow">Parser IDE</p>
+          <h1>DLP-ParserStudio</h1>
+        </div>
+      </div>
       <div class="controls">
-        <label>
-          Metodo
+        <label class="method-control">
+          <span>Metodo</span>
           <select id="method">
             <option>LL(1)</option>
             <option>LR(0)</option>
@@ -19,23 +25,29 @@
             <option>LALR(1)</option>
           </select>
         </label>
-        <button id="run-button" type="button">Ejecutar</button>
+        <button id="run-button" class="run-button" type="button">Ejecutar</button>
       </div>
     </header>
 
     <main class="workspace">
       <section class="editors">
-        <div class="editor-block">
+        <div class="editor-block editor-yalex">
           <div class="editor-header">
-            <h2>YALex</h2>
+            <div>
+              <h2>YALex</h2>
+              <span class="panel-subtitle">Lexer rules</span>
+            </div>
             <input id="yalex-file" type="file" accept=".yalex,.txt" />
           </div>
           <textarea id="yalex-text" spellcheck="false"></textarea>
         </div>
 
-        <div class="editor-block">
+        <div class="editor-block editor-yapar">
           <div class="editor-header">
-            <h2>YAPar</h2>
+            <div>
+              <h2>YAPar</h2>
+              <span class="panel-subtitle">Grammar spec</span>
+            </div>
             <input id="yapar-file" type="file" accept=".yapar,.txt" />
           </div>
           <textarea id="yapar-text" spellcheck="false"></textarea>
@@ -43,7 +55,10 @@
 
         <div class="editor-block input-block">
           <div class="editor-header">
-            <h2>Input</h2>
+            <div>
+              <h2>Input</h2>
+              <span class="panel-subtitle">Source text</span>
+            </div>
             <input id="input-file" type="file" accept=".txt" />
           </div>
           <textarea id="input-text" spellcheck="false"></textarea>
@@ -56,46 +71,46 @@
       </section>
 
       <section class="results-grid">
-        <article>
+        <article class="result-card">
           <h2>Tokens</h2>
-          <pre id="tokens-output"></pre>
+          <pre id="tokens-output" data-empty="Sin tokens generados."></pre>
         </article>
-        <article>
+        <article class="result-card">
           <h2>FIRST / FOLLOW</h2>
-          <pre id="first-follow-output"></pre>
+          <pre id="first-follow-output" data-empty="Sin conjuntos calculados."></pre>
         </article>
-        <article>
+        <article class="result-card">
           <h2>Automata LR(0)</h2>
-          <pre id="automaton-output"></pre>
+          <pre id="automaton-output" data-empty="Sin automata generado."></pre>
         </article>
-        <article>
+        <article class="result-card">
           <h2>Tablas</h2>
-          <pre id="tables-output"></pre>
+          <pre id="tables-output" data-empty="Sin tablas disponibles."></pre>
         </article>
-        <article>
+        <article class="result-card">
           <h2>Pasos</h2>
-          <pre id="steps-output"></pre>
+          <pre id="steps-output" data-empty="Sin pasos de parsing."></pre>
         </article>
-        <article>
+        <article class="result-card">
           <h2>Conflictos</h2>
-          <pre id="conflicts-output"></pre>
+          <pre id="conflicts-output" data-empty="Sin conflictos detectados."></pre>
         </article>
-        <article>
+        <article class="result-card">
           <h2>Ramas paralelas</h2>
-          <pre id="branches-output"></pre>
+          <pre id="branches-output" data-empty="Sin ramas para explorar."></pre>
         </article>
-        <article>
+        <article class="result-card tree-card">
           <h2>Arbol sintactico</h2>
           <div class="tabs">
             <button class="tab active" data-tree-view="json" type="button">JSON</button>
             <button class="tab" data-tree-view="dot" type="button">DOT</button>
             <button class="tab" data-tree-view="text" type="button">Texto</button>
           </div>
-          <pre id="tree-output"></pre>
+          <pre id="tree-output" data-empty="Sin arbol sintactico."></pre>
         </article>
-        <article class="errors-panel">
+        <article class="result-card errors-panel">
           <h2>Errores</h2>
-          <pre id="errors-output"></pre>
+          <pre id="errors-output" data-empty="Sin errores."></pre>
         </article>
       </section>
     </main>

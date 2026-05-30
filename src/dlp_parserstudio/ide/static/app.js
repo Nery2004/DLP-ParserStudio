@@ -41,9 +41,7 @@ async function readFileInto(fileInputId, textareaId) {
 }
 
 async function runAnalysis() {
-  const runButton = $("run-button");
-  runButton.disabled = true;
-  runButton.textContent = "Ejecutando";
+  setLoading(true);
 
   try {
     const response = await fetch("/api/analyze", {
@@ -57,19 +55,22 @@ async function runAnalysis() {
       }),
     });
 
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
     state.lastResult = await response.json();
     render(state.lastResult);
   } catch (error) {
     renderError(error);
   } finally {
-    runButton.disabled = false;
-    runButton.textContent = "Ejecutar";
+    setLoading(false);
   }
 }
 
 function render(result) {
   const accepted = $("accepted-label");
-  accepted.className = result.accepted ? "ok" : "fail";
+  accepted.className = result.errors.length ? "warn" : result.accepted ? "ok" : "fail";
   accepted.textContent = result.errors.length
     ? "Con errores"
     : result.accepted
@@ -77,41 +78,41 @@ function render(result) {
       : "Rechazado";
   $("summary-label").textContent = `${result.method} · ${result.tokens.length} tokens · ${result.steps.length} pasos`;
 
-  $("tokens-output").textContent = pretty(result.tokens);
-  $("first-follow-output").textContent = pretty({
+  setOutput("tokens-output", result.tokens);
+  setOutput("first-follow-output", {
     FIRST: result.first,
     FOLLOW: result.follow,
   });
-  $("automaton-output").textContent = renderAutomaton(result.lr0_automaton);
-  $("tables-output").textContent = pretty(result.tables);
-  $("steps-output").textContent = pretty(result.steps);
-  $("conflicts-output").textContent = pretty(result.conflicts);
-  $("branches-output").textContent = pretty(result.parallel_branches);
-  $("errors-output").textContent = pretty(result.errors);
+  setOutput("automaton-output", renderAutomaton(result.lr0_automaton));
+  setOutput("tables-output", result.tables);
+  setOutput("steps-output", result.steps);
+  setOutput("conflicts-output", result.conflicts);
+  setOutput("branches-output", result.parallel_branches);
+  setOutput("errors-output", result.errors);
   renderTree();
 }
 
 function renderAutomaton(automaton) {
-  if (!automaton) return "";
-  return pretty({
+  if (!automaton) return null;
+  return {
     states: automaton.states,
     transitions: automaton.transitions,
     dot: automaton.dot,
-  });
+  };
 }
 
 function renderTree() {
   const tree = state.lastResult && state.lastResult.syntax_tree;
   if (!tree) {
-    $("tree-output").textContent = "";
+    setOutput("tree-output", null);
     return;
   }
   if (state.treeView === "json") {
-    $("tree-output").textContent = pretty(tree.json);
+    setOutput("tree-output", tree.json);
   } else if (state.treeView === "dot") {
-    $("tree-output").textContent = tree.dot || "";
+    setOutput("tree-output", tree.dot || null);
   } else {
-    $("tree-output").textContent = tree.text || "";
+    setOutput("tree-output", tree.text || null);
   }
 }
 
@@ -119,13 +120,48 @@ function renderError(error) {
   $("accepted-label").className = "fail";
   $("accepted-label").textContent = "Error";
   $("summary-label").textContent = "";
-  $("errors-output").textContent = String(error);
+  setOutput("errors-output", String(error));
 }
 
 function pretty(value) {
   if (value === null || value === undefined) return "";
   if (typeof value === "string") return value;
   return JSON.stringify(value, null, 2);
+}
+
+function isEmpty(value) {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string") return value.trim() === "";
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === "object") return Object.keys(value).length === 0;
+  return false;
+}
+
+function setOutput(id, value) {
+  const element = $(id);
+  if (isEmpty(value)) {
+    element.textContent = element.dataset.empty || "Sin resultados.";
+    element.classList.add("empty-output");
+    return;
+  }
+
+  element.textContent = pretty(value);
+  element.classList.remove("empty-output");
+}
+
+function setLoading(isLoading) {
+  const runButton = $("run-button");
+  document.body.classList.toggle("loading", isLoading);
+  runButton.classList.toggle("loading", isLoading);
+  runButton.disabled = isLoading;
+  runButton.textContent = isLoading ? "Analizando..." : "Ejecutar";
+}
+
+function initEmptyOutputs() {
+  document.querySelectorAll("pre[id]").forEach((element) => {
+    element.textContent = element.dataset.empty || "Sin resultados.";
+    element.classList.add("empty-output");
+  });
 }
 
 function wireTabs() {
@@ -142,6 +178,7 @@ function wireTabs() {
 
 function boot() {
   setDefaults();
+  initEmptyOutputs();
   readFileInto("yalex-file", "yalex-text");
   readFileInto("yapar-file", "yapar-text");
   readFileInto("input-file", "input-text");
