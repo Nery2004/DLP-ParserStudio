@@ -1,0 +1,12 @@
+# Classic grammar that is LR(1)/LALR(1) but not SLR(1):
+# S -> L = R | R
+# L -> * R | id
+# R -> L
+
+%token ID STAR EQUAL
+%start S
+
+%%
+S : L EQUAL R | R ;
+L : STAR R | ID ;
+R : L ;
