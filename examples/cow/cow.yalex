@@ -1,0 +1,7 @@
+# Lexer educativo para COW simplificado.
+
+MOO_UPPER  MOO
+MOO_LEFT   mOo
+MOO_RIGHT  moO
+MOO_LOWER  moo
+WS         [ \t\r\n]+  skip

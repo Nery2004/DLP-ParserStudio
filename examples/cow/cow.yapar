@@ -1,0 +1,12 @@
+%token MOO_UPPER MOO_LEFT MOO_RIGHT MOO_LOWER
+%ignore WS
+%start program
+
+%%
+program : command commands ;
+commands : command commands
+         | epsilon ;
+command : MOO_UPPER
+        | MOO_LEFT
+        | MOO_RIGHT
+        | MOO_LOWER ;

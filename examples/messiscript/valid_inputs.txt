@@ -1,0 +1,2 @@
+arranca; gol messi; fin;
+arranca; gol messi; pase messi suarez; marca messi 10; grita "vamos"; fin;

@@ -1,0 +1,30 @@
+%token LET PRINT IF WHILE NUMBER ID PLUS MINUS TIMES DIVIDE ASSIGN LPAREN RPAREN LBRACE RBRACE SEMI
+%ignore WS
+%start program
+
+%%
+program : statements ;
+statements : statement statements
+           | epsilon ;
+statement : declaration
+          | assignment
+          | print_stmt
+          | if_stmt
+          | while_stmt ;
+declaration : LET ID ASSIGN expr SEMI ;
+assignment : ID ASSIGN expr SEMI ;
+print_stmt : PRINT expr SEMI ;
+if_stmt : IF expr block ;
+while_stmt : WHILE expr block ;
+block : LBRACE statements RBRACE ;
+expr : term expr_tail ;
+expr_tail : PLUS term expr_tail
+          | MINUS term expr_tail
+          | epsilon ;
+term : factor term_tail ;
+term_tail : TIMES factor term_tail
+          | DIVIDE factor term_tail
+          | epsilon ;
+factor : NUMBER
+       | ID
+       | LPAREN expr RPAREN ;

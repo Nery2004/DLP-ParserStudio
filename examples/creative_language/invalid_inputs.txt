@@ -1,0 +1,5 @@
+let = 10;
+energia energia + 5;
+print ;
+if energia print energia;
+while { energia = energia - 1; }

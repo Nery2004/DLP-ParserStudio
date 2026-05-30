@@ -1,0 +1,16 @@
+%token ARRANCA GOL PASE MARCA GRITA FIN NUMBER STRING ID SEMI
+%ignore WS
+%start script
+
+%%
+script : ARRANCA SEMI commands FIN SEMI ;
+commands : command commands
+         | epsilon ;
+command : goal
+        | pass
+        | mark
+        | shout ;
+goal : GOL ID SEMI ;
+pass : PASE ID ID SEMI ;
+mark : MARCA ID NUMBER SEMI ;
+shout : GRITA STRING SEMI ;

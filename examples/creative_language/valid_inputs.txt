@@ -1,0 +1,6 @@
+let energia = 10;
+energia = energia + 5;
+print energia;
+if energia { print energia; }
+while energia { energia = energia - 1; }
+let goles = (10 + 2) * 3;
