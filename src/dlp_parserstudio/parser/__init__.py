@@ -18,6 +18,14 @@ from dlp_parserstudio.parser.ll1 import (
     ParseStep,
     build_ll1_table,
 )
+from dlp_parserstudio.parser.lr0 import (
+    LR0Automaton,
+    LR0Item,
+    LR0State,
+    build_lr0_automaton,
+    closure,
+    goto,
+)
 from dlp_parserstudio.parser.yapar_loader import (
     YaparLoader,
     YaparLoaderError,
@@ -34,14 +42,20 @@ __all__ = [
     "LL1Parser",
     "LL1Table",
     "LL1ParsingTable",
+    "LR0Automaton",
+    "LR0Item",
+    "LR0State",
     "ParseResult",
     "ParseStep",
     "YaparLoader",
     "YaparLoaderError",
     "build_ll1_table",
+    "build_lr0_automaton",
     "calculate_first_sets",
     "calculate_follow_sets",
+    "closure",
     "first_of_sequence",
+    "goto",
     "load_yapar",
     "loads_yapar",
 ]
