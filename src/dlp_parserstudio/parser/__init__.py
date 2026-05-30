@@ -46,6 +46,14 @@ from dlp_parserstudio.parser.lr0 import (
     closure,
     goto,
 )
+from dlp_parserstudio.parser.parallel_conflict import (
+    ConflictBranch,
+    ConflictBranchStep,
+    ParallelConflictExplorer,
+    ParallelConflictResult,
+    explore_shift_reduce_branches,
+    explore_shift_reduce_conflict,
+)
 from dlp_parserstudio.parser.slr import (
     SLRAction,
     SLRConflict,
@@ -93,6 +101,10 @@ __all__ = [
     "LR0State",
     "ParseResult",
     "ParseStep",
+    "ConflictBranch",
+    "ConflictBranchStep",
+    "ParallelConflictExplorer",
+    "ParallelConflictResult",
     "SLRAction",
     "SLRConflict",
     "SLRConflictError",
@@ -119,6 +131,8 @@ __all__ = [
     "first_of_sequence",
     "goto",
     "goto_lr1",
+    "explore_shift_reduce_branches",
+    "explore_shift_reduce_conflict",
     "load_yapar",
     "loads_yapar",
 ]
