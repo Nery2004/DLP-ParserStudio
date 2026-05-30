@@ -14,6 +14,7 @@ from dlp_parserstudio.parser.first_follow import (
     calculate_follow_sets,
     first_of_sequence,
 )
+from dlp_parserstudio.parser.syntax_tree import SyntaxTree, TreeNode
 
 
 @dataclass(frozen=True)
@@ -89,6 +90,11 @@ class ParseResult:
     accepted: bool
     steps: tuple[ParseStep, ...]
     error: str | None = None
+    syntax_tree: SyntaxTree | None = None
+
+    @property
+    def tree(self) -> SyntaxTree | None:
+        return self.syntax_tree
 
 
 class LL1Parser:
@@ -108,48 +114,68 @@ class LL1Parser:
             raise LL1ConflictError(self.table.conflicts)
 
     def parse(self, tokens: Iterable[object]) -> ParseResult:
-        input_symbols = _normalize_input(tokens)
-        stack: list[Symbol] = [EOF, self.grammar.start_symbol]
+        input_tokens = _normalize_input(tokens)
+        root = TreeNode(self.grammar.start_symbol.name)
+        stack: list[tuple[Symbol, TreeNode | None]] = [
+            (EOF, None),
+            (self.grammar.start_symbol, root),
+        ]
         position = 0
         steps: list[ParseStep] = []
 
         while stack:
-            top = stack.pop()
-            lookahead = input_symbols[position]
-            current_stack = tuple(_symbol_name(symbol) for symbol in [*stack, top])
+            top, node = stack.pop()
+            lookahead = input_tokens[position]
+            current_stack = tuple(
+                _symbol_name(symbol) for symbol, _node in [*stack, (top, node)]
+            )
             remaining_input = tuple(
-                _symbol_name(symbol) for symbol in input_symbols[position:]
+                token.terminal.name for token in input_tokens[position:]
             )
 
-            if top == EOF and lookahead == EOF:
+            if top == EOF and lookahead.terminal == EOF:
                 steps.append(ParseStep(current_stack, remaining_input, "accept"))
-                return ParseResult(True, tuple(steps))
+                return ParseResult(True, tuple(steps), syntax_tree=SyntaxTree(root))
 
             if isinstance(top, Terminal):
-                if top == lookahead:
+                if top == lookahead.terminal:
+                    if node is not None:
+                        node.lexeme = lookahead.lexeme
+                        node.line = lookahead.line
+                        node.column = lookahead.column
                     steps.append(
-                        ParseStep(current_stack, remaining_input, f"match {lookahead.name}")
+                        ParseStep(
+                            current_stack,
+                            remaining_input,
+                            f"match {lookahead.terminal.name}",
+                        )
                     )
                     position += 1
                     continue
 
-                error = f"Expected {top.name}, found {lookahead.name}"
+                error = f"Expected {top.name}, found {lookahead.terminal.name}"
                 steps.append(ParseStep(current_stack, remaining_input, f"error: {error}"))
                 return ParseResult(False, tuple(steps), error)
 
             if isinstance(top, NonTerminal):
-                production = self.table.get(top, lookahead)
+                production = self.table.get(top, lookahead.terminal)
                 if production is None:
-                    error = f"No LL(1) production for {top.name} with lookahead {lookahead.name}"
+                    error = (
+                        f"No LL(1) production for {top.name} "
+                        f"with lookahead {lookahead.terminal.name}"
+                    )
                     steps.append(ParseStep(current_stack, remaining_input, f"error: {error}"))
                     return ParseResult(False, tuple(steps), error)
 
                 rhs = tuple(
                     symbol for symbol in production.rhs if not _is_epsilon_symbol(symbol)
                 )
+                child_nodes = [TreeNode(symbol.name) for symbol in rhs]
+                if node is not None:
+                    node.children.extend(child_nodes)
                 action = _format_production(production)
                 steps.append(ParseStep(current_stack, remaining_input, action))
-                stack.extend(reversed(rhs))
+                stack.extend(reversed(tuple(zip(rhs, child_nodes))))
                 continue
 
             error = f"Unsupported stack symbol {top.name}"
@@ -157,7 +183,7 @@ class LL1Parser:
             return ParseResult(False, tuple(steps), error)
 
         error = "Parser stack emptied before accepting input"
-        remaining_input = tuple(_symbol_name(symbol) for symbol in input_symbols[position:])
+        remaining_input = tuple(token.terminal.name for token in input_tokens[position:])
         steps.append(ParseStep((), remaining_input, f"error: {error}"))
         return ParseResult(False, tuple(steps), error)
 
@@ -198,24 +224,61 @@ def build_ll1_table(
     return table
 
 
-def _normalize_input(tokens: Iterable[object]) -> list[Terminal]:
-    input_symbols = [_as_terminal(token) for token in tokens]
-    if not input_symbols or input_symbols[-1] != EOF:
-        input_symbols.append(EOF)
-    return input_symbols
+@dataclass(frozen=True)
+class _InputToken:
+    terminal: Terminal
+    lexeme: str
+    line: int
+    column: int
+
+
+def _normalize_input(tokens: Iterable[object]) -> list[_InputToken]:
+    input_tokens = [_as_input_token(token) for token in tokens]
+    if input_tokens and input_tokens[-1].terminal == EOF:
+        return input_tokens
+
+    line, column = _eof_location(input_tokens)
+    input_tokens.append(_InputToken(EOF, EOF.name, line, column))
+    return input_tokens
 
 
 def _as_terminal(token: object) -> Terminal:
+    return _as_input_token(token).terminal
+
+
+def _as_input_token(token: object) -> _InputToken:
     if isinstance(token, Terminal):
-        return EOF if token.name == EOF.name else token
+        terminal = EOF if token.name == EOF.name else token
+        return _InputToken(terminal, terminal.name, 1, 1)
     if isinstance(token, str):
-        return EOF if token == EOF.name else Terminal(token)
+        terminal = EOF if token == EOF.name else Terminal(token)
+        return _InputToken(terminal, token, 1, 1)
 
     token_type = getattr(token, "type", None)
     if isinstance(token_type, str):
-        return EOF if token_type == EOF.name else Terminal(token_type)
+        lexeme = getattr(token, "lexeme", token_type)
+        line = getattr(token, "line", 1)
+        column = getattr(token, "column", 1)
+        terminal = EOF if token_type == EOF.name else Terminal(token_type)
+        return _InputToken(terminal, str(lexeme), int(line), int(column))
 
     raise TypeError("Parser input must contain token-like objects, Terminal, or str values.")
+
+
+def _eof_location(tokens: list[_InputToken]) -> tuple[int, int]:
+    if not tokens:
+        return 1, 1
+
+    last = tokens[-1]
+    line = last.line
+    column = last.column
+    for character in last.lexeme:
+        if character == "\n":
+            line += 1
+            column = 1
+        else:
+            column += 1
+    return line, column
 
 
 def _symbol_name(symbol: Symbol) -> str:

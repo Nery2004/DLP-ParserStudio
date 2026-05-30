@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from dlp_parserstudio.core.grammar import Grammar, NonTerminal, Production, Symbol, Terminal
 from dlp_parserstudio.parser.first_follow import EOF, EPSILON_NAMES, calculate_follow_sets
 from dlp_parserstudio.parser.lr0 import LR0Automaton, build_lr0_automaton
+from dlp_parserstudio.parser.syntax_tree import SyntaxTree, TreeNode
 
 
 @dataclass(frozen=True)
@@ -127,10 +128,15 @@ class SLRParseResult:
     steps: tuple[SLRParseStep, ...]
     conflicts: tuple[SLRConflict, ...] = ()
     errors: tuple[SLRParseError, ...] = ()
+    syntax_tree: SyntaxTree | None = None
 
     @property
     def error(self) -> SLRParseError | None:
         return self.errors[0] if self.errors else None
+
+    @property
+    def tree(self) -> SyntaxTree | None:
+        return self.syntax_tree
 
 
 class SLRParser:
@@ -156,6 +162,7 @@ class SLRParser:
     def parse(self, tokens: Iterable[object]) -> SLRParseResult:
         input_tokens = _normalize_input(tokens)
         stack: list[int | Symbol] = [0]
+        nodes: list[TreeNode] = []
         position = 0
         steps: list[SLRParseStep] = []
 
@@ -176,6 +183,14 @@ class SLRParser:
                     )
                 )
                 stack.extend([current_token.terminal, action.target])
+                nodes.append(
+                    TreeNode(
+                        current_token.terminal.name,
+                        current_token.lexeme,
+                        current_token.line,
+                        current_token.column,
+                    )
+                )
                 position += 1
                 continue
 
@@ -183,8 +198,10 @@ class SLRParser:
                 assert action.production is not None
                 production = action.production
                 rhs_length = len(production.rhs)
+                children = nodes[-rhs_length:] if rhs_length else []
                 if rhs_length:
                     del stack[-2 * rhs_length :]
+                    del nodes[-rhs_length:]
 
                 goto_source = _top_state(stack)
                 target = self.table.goto_for(goto_source, production.lhs)
@@ -216,12 +233,20 @@ class SLRParser:
                         f"reduce {_format_production(production)}",
                     )
                 )
+                parent = TreeNode(production.lhs.name, children=children)
                 stack.extend([production.lhs, target])
+                nodes.append(parent)
                 continue
 
             if action.kind == "accept":
                 steps.append(SLRParseStep(stack_view, remaining_input, "accept"))
-                return SLRParseResult(True, tuple(steps), self.table.conflicts)
+                syntax_tree = SyntaxTree(nodes[-1]) if nodes else None
+                return SLRParseResult(
+                    True,
+                    tuple(steps),
+                    self.table.conflicts,
+                    syntax_tree=syntax_tree,
+                )
 
             error = SLRParseError(
                 current_token.terminal.name,

@@ -38,6 +38,7 @@ from dlp_parserstudio.parser.slr import (
     SLRTable,
     build_slr_table,
 )
+from dlp_parserstudio.parser.syntax_tree import SyntaxTree, TreeNode
 from dlp_parserstudio.parser.yapar_loader import (
     YaparLoader,
     YaparLoaderError,
@@ -68,6 +69,8 @@ __all__ = [
     "SLRParser",
     "SLRParsingTable",
     "SLRTable",
+    "SyntaxTree",
+    "TreeNode",
     "YaparLoader",
     "YaparLoaderError",
     "build_ll1_table",
