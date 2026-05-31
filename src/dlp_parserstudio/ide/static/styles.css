@@ -39,9 +39,9 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 34rem),
-    radial-gradient(circle at top right, rgba(124, 58, 237, 0.14), transparent 32rem),
-    linear-gradient(180deg, #0a0f1a 0%, var(--bg) 42%, #06080d 100%);
+    linear-gradient(135deg, rgba(56, 189, 248, 0.1), transparent 32%),
+    linear-gradient(225deg, rgba(124, 58, 237, 0.1), transparent 36%),
+    linear-gradient(180deg, #0a0f1a 0%, var(--bg) 44%, #06080d 100%);
   color: var(--text);
   letter-spacing: 0;
 }
@@ -223,7 +223,7 @@ select:hover {
 
 .editors {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(280px, 0.8fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -260,6 +260,10 @@ select:hover {
   background: linear-gradient(90deg, #22c55e, #f59e0b, #38bdf8);
 }
 
+.editor-lexicon::before {
+  background: linear-gradient(90deg, #f59e0b, #22c55e, #a78bfa);
+}
+
 .editor-header {
   display: flex;
   min-height: 54px;
@@ -271,6 +275,14 @@ select:hover {
   background: rgba(15, 23, 42, 0.62);
 }
 
+.editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
 .panel-subtitle {
   display: block;
   margin-top: 4px;
@@ -280,7 +292,7 @@ select:hover {
 }
 
 input[type="file"] {
-  width: min(190px, 48%);
+  width: min(190px, 100%);
   color: var(--muted);
   font-size: 11px;
 }
@@ -298,6 +310,23 @@ input[type="file"]::file-selector-button {
 input[type="file"]::file-selector-button:hover {
   border-color: rgba(56, 189, 248, 0.7);
   background: rgba(56, 189, 248, 0.18);
+}
+
+.save-button {
+  height: 30px;
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.1);
+  color: #86efac;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.save-button:hover {
+  border-color: rgba(34, 197, 94, 0.7);
+  background: rgba(34, 197, 94, 0.18);
 }
 
 textarea {
@@ -445,7 +474,25 @@ pre {
   word-break: break-word;
 }
 
-pre.empty-output {
+.table-container,
+.branches-container,
+.graph-container {
+  min-height: 184px;
+  max-height: 500px;
+  overflow: auto;
+  padding: 13px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.02);
+  background:
+    linear-gradient(180deg, rgba(56, 189, 248, 0.035), transparent 38%),
+    var(--terminal);
+  color: #c7d2fe;
+  font: 12px/1.58 var(--mono);
+}
+
+pre.empty-output,
+.table-container.empty-output,
+.branches-container.empty-output,
+.graph-container.empty-output {
   display: grid;
   place-items: center start;
   color: #64748b;
@@ -454,6 +501,202 @@ pre.empty-output {
 
 pre:not(.empty-output) {
   text-shadow: 0 0 12px rgba(56, 189, 248, 0.04);
+}
+
+.table-container h3,
+.graph-container h3 {
+  margin: 14px 0 8px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.table-container h3:first-child,
+.graph-container h3:first-child {
+  margin-top: 0;
+}
+
+.text-output {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.parse-table {
+  width: 100%;
+  margin-bottom: 12px;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.parse-table th,
+.parse-table td {
+  border: 1px solid var(--line);
+  padding: 5px 8px;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.parse-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #112033;
+  color: var(--muted-strong);
+  font-weight: 800;
+}
+
+.parse-table td {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.parse-table code {
+  display: inline-block;
+  margin: 1px 0;
+  border-radius: 3px;
+  background: rgba(56, 189, 248, 0.1);
+  color: #bae6fd;
+  padding: 1px 5px;
+}
+
+.cell-shift {
+  color: #93c5fd;
+}
+
+.cell-reduce {
+  color: #c4b5fd;
+}
+
+.cell-accept {
+  color: #86efac;
+  font-weight: 800;
+}
+
+.row-accept,
+.row-accept td {
+  background: var(--ok-soft) !important;
+}
+
+.row-error,
+.row-error td {
+  background: var(--danger-soft) !important;
+}
+
+.graph-container {
+  max-height: 600px;
+}
+
+.graph-section {
+  min-width: max-content;
+  margin-bottom: 18px;
+}
+
+.graph-section:last-child {
+  margin-bottom: 0;
+}
+
+.graph-container svg {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  min-width: 640px;
+  margin: 0 auto;
+}
+
+.graph-container svg text {
+  fill: var(--text);
+  font-family: var(--mono);
+}
+
+.graph-container svg path,
+.graph-container svg polygon,
+.graph-container svg ellipse {
+  stroke: var(--muted);
+}
+
+.graph-container svg .edge text {
+  fill: var(--accent);
+}
+
+.branch {
+  margin-bottom: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.branch:last-child {
+  margin-bottom: 0;
+}
+
+.branch-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.branch-action {
+  color: var(--muted);
+}
+
+.branch-result {
+  margin-left: auto;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.branch-ok .branch-result {
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  background: var(--ok-soft);
+  color: #86efac;
+}
+
+.branch-fail .branch-result {
+  border: 1px solid rgba(251, 113, 133, 0.4);
+  background: var(--danger-soft);
+  color: #fecdd3;
+}
+
+.branch-error {
+  padding: 8px 12px;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.translation-summary {
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.translation-row {
+  display: flex;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.translation-label {
+  min-width: 100px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.translation-value {
+  color: var(--text);
+}
+
+.translation-result {
+  color: var(--ok);
+  font-weight: 800;
 }
 
 .tabs {
@@ -510,12 +753,10 @@ pre:not(.empty-output) {
 }
 
 @media (max-width: 1180px) {
-  .editors,
   .results-grid {
     grid-template-columns: 1fr 1fr;
   }
 
-  .input-block,
   .errors-panel {
     grid-column: 1 / -1;
   }
@@ -558,7 +799,17 @@ pre:not(.empty-output) {
     flex-direction: column;
   }
 
+  .editor-actions {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+  }
+
   input[type="file"] {
+    width: 100%;
+  }
+
+  .save-button {
     width: 100%;
   }
 

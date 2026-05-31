@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from dlp_parserstudio.ide.app import create_app
@@ -41,6 +43,33 @@ def test_ide_analysis_supports_all_methods(method: str) -> None:
     assert result["accepted"]
     assert result["errors"] == []
     assert result["syntax_tree"] is not None
+
+
+def test_ide_analysis_detects_mini_antlr_grammar() -> None:
+    grammar = Path("examples/calc.mini.g4").read_text(encoding="utf-8")
+    result = analyze_source("", grammar, "12 + 7", "SLR(1)")
+
+    assert result["accepted"]
+    assert result["format_detected"] == "antlr"
+    assert [token["type"] for token in result["tokens"]] == ["NUMBER", "PLUS", "NUMBER"]
+
+
+def test_ide_analysis_builds_translation_from_lexicon_text() -> None:
+    result = analyze_source(
+        YALEX,
+        YAPAR,
+        "12 + 7",
+        "SLR(1)",
+        "original\ttraduccion\n12\tdoce\n+\tmas\n7\tsiete\n",
+    )
+
+    assert result["translation"]["original"] == "12 + 7"
+    assert result["translation"]["translated"] == "doce mas siete"
+    assert result["translation"]["token_map"][1] == {
+        "original": "+",
+        "translated": "mas",
+        "type": "PLUS",
+    }
 
 
 def test_ide_analysis_reports_lexical_error_with_location() -> None:
@@ -112,3 +141,13 @@ def test_create_ide_app_exposes_expected_routes() -> None:
 
     assert "/" in paths
     assert "/api/analyze" in paths
+
+
+def test_ide_html_exposes_only_required_parser_methods() -> None:
+    html = Path("src/dlp_parserstudio/ide/static/index.html").read_text(encoding="utf-8")
+
+    assert "<option>LL(1)</option>" in html
+    assert "<option selected>SLR(1)</option>" in html
+    assert "<option>LALR(1)</option>" in html
+    assert "<option>LR(0)</option>" not in html
+    assert 'id="lexicon-text"' in html

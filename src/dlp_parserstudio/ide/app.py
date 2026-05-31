@@ -20,6 +20,7 @@ class AnalyzeRequest(BaseModel):
     yapar_text: str
     input_text: str
     method: str = "SLR(1)"
+    lexicon_text: str = ""
 
 
 def create_app() -> FastAPI:
@@ -37,6 +38,7 @@ def create_app() -> FastAPI:
             request.yapar_text,
             request.input_text,
             request.method,
+            request.lexicon_text,
         )
 
     return app

@@ -8,6 +8,7 @@ from typing import Any, Iterable, Mapping
 
 from dlp_parserstudio.core.grammar import Grammar, NonTerminal, Production, Symbol, Terminal
 from dlp_parserstudio.lexer.yalex import LexerRule, LexicalError, Token, YALexLexer
+from dlp_parserstudio.mini_antlr.loader import MiniANTLRLoaderError, loads_mini_antlr
 from dlp_parserstudio.parser.first_follow import EOF, FirstFollowCalculator
 from dlp_parserstudio.parser.lalr import LALRParser, build_lalr_table
 from dlp_parserstudio.parser.ll1 import LL1Parser, build_ll1_table
@@ -89,6 +90,7 @@ def analyze_source(
     yapar_text: str,
     input_text: str,
     method: str,
+    lexicon_text: str = "",
 ) -> dict[str, Any]:
     """Run the selected analysis pipeline and return JSON-serializable data."""
 
@@ -96,6 +98,7 @@ def analyze_source(
     method_key = method.lower()
     result: dict[str, Any] = {
         "method": method,
+        "format_detected": None,
         "tokens": [],
         "first": {},
         "follow": {},
@@ -108,13 +111,23 @@ def analyze_source(
         "conflicts": [],
         "parallel_branches": [],
         "syntax_tree": None,
+        "translation": None,
         "errors": errors,
     }
 
     try:
-        rules = loads_yalex(yalex_text)
-        lexer = YALexLexer(rules)
-        grammar = loads_yapar(yapar_text)
+        grammar_format = _detect_grammar_format(yapar_text)
+        result["format_detected"] = grammar_format
+
+        if grammar_format == "antlr":
+            spec = loads_mini_antlr(yapar_text)
+            lexer = YALexLexer(spec.lexer_rules)
+            grammar = spec.grammar
+        else:
+            rules = loads_yalex(yalex_text)
+            lexer = YALexLexer(rules)
+            grammar = loads_yapar(yapar_text)
+
         tokens, lexical_errors = _tokenize_collecting_errors(lexer, input_text)
         errors.extend(lexical_errors)
     except YALexLoaderError as error:
@@ -123,11 +136,15 @@ def analyze_source(
     except YaparLoaderError as error:
         errors.append(_error("yapar", str(error), error.line, error.column))
         return result
+    except MiniANTLRLoaderError as error:
+        errors.append(_error("antlr", str(error), 1, 1))
+        return result
     except Exception as error:
         errors.append(_error("internal", str(error), 1, 1))
         return result
 
     result["tokens"] = [_token_to_dict(token) for token in tokens]
+    result["translation"] = _translation_to_dict(input_text, tokens, lexicon_text)
     result.update(_first_follow_to_dict(grammar))
 
     try:
@@ -151,6 +168,14 @@ def analyze_source(
         errors.append(_error("parser", str(error), 1, 1))
 
     return result
+
+
+def _detect_grammar_format(text: str) -> str:
+    stripped = text.strip()
+    first_line = stripped.splitlines()[0] if stripped else ""
+    if re.match(r"^grammar\s+[A-Za-z_][A-Za-z0-9_]*\s*;", first_line):
+        return "antlr"
+    return "yapar"
 
 
 def loads_yalex(text: str) -> list[LexerRule]:
@@ -826,6 +851,74 @@ def _dedupe_errors(errors: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
         result.append(error)
 
     return result
+
+
+def _translation_to_dict(
+    input_text: str,
+    tokens: list[Token],
+    lexicon_text: str,
+) -> dict[str, Any] | None:
+    lexicon = _parse_lexicon(lexicon_text)
+    if not lexicon:
+        return None
+
+    token_map = []
+    for token in tokens:
+        original = token.lexeme
+        translated = lexicon.get(original.lower(), original)
+        token_map.append(
+            {
+                "original": original,
+                "translated": translated,
+                "type": token.type,
+            }
+        )
+
+    return {
+        "original": input_text.strip(),
+        "translated": " ".join(entry["translated"] for entry in token_map),
+        "token_map": token_map,
+    }
+
+
+def _parse_lexicon(text: str) -> dict[str, str]:
+    table: dict[str, str] = {}
+    lines = [line for line in text.splitlines() if line.strip()]
+    if not lines:
+        return table
+
+    header = [part.strip().lower() for part in lines[0].split("\t")]
+    has_header = any(name in header for name in {"original", "lexeme", "lexer_form", "spanish", "translation", "traduccion"})
+
+    if has_header:
+        key_index = _first_existing_index(header, ("original", "lexeme", "lexer_form", "qeqchi_form"))
+        value_index = _first_existing_index(header, ("translation", "traduccion", "translated", "spanish", "espanol"))
+        data_lines = lines[1:]
+    else:
+        key_index = 0
+        value_index = 1
+        data_lines = lines
+
+    if key_index is None or value_index is None:
+        return table
+
+    for line in data_lines:
+        parts = [part.strip() for part in line.split("\t")]
+        if len(parts) <= max(key_index, value_index):
+            continue
+        key = parts[key_index].lower()
+        value = parts[value_index]
+        if key and value:
+            table[key] = value
+
+    return table
+
+
+def _first_existing_index(values: list[str], names: Iterable[str]) -> int | None:
+    for name in names:
+        if name in values:
+            return values.index(name)
+    return None
 
 
 def _syntax_tree_to_dict(tree: SyntaxTree | None) -> dict[str, Any] | None:

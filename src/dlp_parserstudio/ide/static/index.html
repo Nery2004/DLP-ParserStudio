@@ -20,7 +20,6 @@
           <span>Metodo</span>
           <select id="method">
             <option>LL(1)</option>
-            <option>LR(0)</option>
             <option selected>SLR(1)</option>
             <option>LALR(1)</option>
           </select>
@@ -37,7 +36,10 @@
               <h2>YALex</h2>
               <span class="panel-subtitle">Lexer rules</span>
             </div>
-            <input id="yalex-file" type="file" accept=".yalex,.txt" />
+            <div class="editor-actions">
+              <input id="yalex-file" type="file" accept=".yalex,.txt" />
+              <button class="save-button" data-save="yalex-text" data-filename="grammar.yalex" type="button">Guardar</button>
+            </div>
           </div>
           <textarea id="yalex-text" spellcheck="false"></textarea>
         </div>
@@ -45,10 +47,13 @@
         <div class="editor-block editor-yapar">
           <div class="editor-header">
             <div>
-              <h2>YAPar</h2>
-              <span class="panel-subtitle">Grammar spec</span>
+              <h2>YAPar / ANTLR</h2>
+              <span class="panel-subtitle">Grammar spec (.yapar o .g4)</span>
             </div>
-            <input id="yapar-file" type="file" accept=".yapar,.txt" />
+            <div class="editor-actions">
+              <input id="yapar-file" type="file" accept=".yapar,.g4,.txt" />
+              <button class="save-button" data-save="yapar-text" data-filename="grammar.yapar" type="button">Guardar</button>
+            </div>
           </div>
           <textarea id="yapar-text" spellcheck="false"></textarea>
         </div>
@@ -59,9 +64,26 @@
               <h2>Input</h2>
               <span class="panel-subtitle">Source text</span>
             </div>
-            <input id="input-file" type="file" accept=".txt" />
+            <div class="editor-actions">
+              <input id="input-file" type="file" accept=".txt" />
+              <button class="save-button" data-save="input-text" data-filename="input.txt" type="button">Guardar</button>
+            </div>
           </div>
           <textarea id="input-text" spellcheck="false"></textarea>
+        </div>
+
+        <div class="editor-block editor-lexicon">
+          <div class="editor-header">
+            <div>
+              <h2>Lexicon</h2>
+              <span class="panel-subtitle">Traduccion TSV: original TAB traduccion</span>
+            </div>
+            <div class="editor-actions">
+              <input id="lexicon-file" type="file" accept=".tsv,.txt" />
+              <button class="save-button" data-save="lexicon-text" data-filename="lexicon.tsv" type="button">Guardar</button>
+            </div>
+          </div>
+          <textarea id="lexicon-text" spellcheck="false" placeholder="original&#9;traduccion&#10;b'ar&#9;donde&#10;laa'in&#9;yo"></textarea>
         </div>
       </section>
 
@@ -73,48 +95,61 @@
       <section class="results-grid">
         <article class="result-card">
           <h2>Tokens</h2>
-          <pre id="tokens-output" data-empty="Sin tokens generados."></pre>
+          <div id="tokens-output" class="table-container" data-empty="Sin tokens generados."></div>
         </article>
         <article class="result-card">
           <h2>FIRST / FOLLOW</h2>
-          <pre id="first-follow-output" data-empty="Sin conjuntos calculados."></pre>
+          <div id="first-follow-output" class="table-container" data-empty="Sin conjuntos calculados."></div>
         </article>
-        <article class="result-card">
+        <article class="result-card automaton-card">
           <h2>Automatas LR</h2>
-          <pre id="automaton-output" data-empty="Sin automatas generados."></pre>
+          <div class="tabs">
+            <button class="tab active" data-automaton-view="graph" type="button">Grafo</button>
+            <button class="tab" data-automaton-view="dot" type="button">DOT</button>
+            <button class="tab" data-automaton-view="states" type="button">Estados</button>
+          </div>
+          <div id="automaton-graph" class="graph-container" data-empty="Sin automatas generados."></div>
+          <div id="automaton-output" class="table-container" data-empty="Sin automatas generados." hidden></div>
         </article>
         <article class="result-card">
           <h2>Tablas</h2>
-          <pre id="tables-output" data-empty="Sin tablas disponibles."></pre>
+          <div id="tables-output" class="table-container" data-empty="Sin tablas disponibles."></div>
         </article>
         <article class="result-card">
           <h2>Pasos</h2>
-          <pre id="steps-output" data-empty="Sin pasos de parsing."></pre>
+          <div id="steps-output" class="table-container" data-empty="Sin pasos de parsing."></div>
         </article>
         <article class="result-card">
           <h2>Conflictos</h2>
-          <pre id="conflicts-output" data-empty="Sin conflictos detectados."></pre>
+          <div id="conflicts-output" class="table-container" data-empty="Sin conflictos detectados."></div>
         </article>
         <article class="result-card">
           <h2>Ramas paralelas</h2>
-          <pre id="branches-output" data-empty="Sin ramas para explorar."></pre>
+          <div id="branches-output" class="branches-container" data-empty="Sin ramas para explorar."></div>
+        </article>
+        <article class="result-card translation-card">
+          <h2>Traduccion</h2>
+          <div id="translation-output" class="table-container" data-empty="Sin traduccion (agregue un lexicon)."></div>
         </article>
         <article class="result-card tree-card">
           <h2>Arbol sintactico</h2>
           <div class="tabs">
-            <button class="tab active" data-tree-view="json" type="button">JSON</button>
+            <button class="tab active" data-tree-view="graph" type="button">Grafo</button>
+            <button class="tab" data-tree-view="json" type="button">JSON</button>
             <button class="tab" data-tree-view="dot" type="button">DOT</button>
             <button class="tab" data-tree-view="text" type="button">Texto</button>
           </div>
-          <pre id="tree-output" data-empty="Sin arbol sintactico."></pre>
+          <div id="tree-graph" class="graph-container" data-empty="Sin arbol sintactico."></div>
+          <pre id="tree-output" data-empty="Sin arbol sintactico." hidden></pre>
         </article>
         <article class="result-card errors-panel">
           <h2>Errores</h2>
-          <pre id="errors-output" data-empty="Sin errores."></pre>
+          <div id="errors-output" class="table-container" data-empty="Sin errores."></div>
         </article>
       </section>
     </main>
 
+    <script src="/static/viz-standalone.js"></script>
     <script src="/static/app.js"></script>
   </body>
 </html>
