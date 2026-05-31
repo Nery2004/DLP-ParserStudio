@@ -582,6 +582,125 @@ pre:not(.empty-output) {
   background: var(--danger-soft) !important;
 }
 
+.row-error-lexer td {
+  background: rgba(251, 113, 133, 0.14) !important;
+}
+
+.row-error-syntax td {
+  background: rgba(245, 158, 11, 0.13) !important;
+}
+
+.row-error-semantic td {
+  background: rgba(168, 85, 247, 0.14) !important;
+}
+
+.row-error-grammar td {
+  background: rgba(234, 179, 8, 0.14) !important;
+}
+
+.row-error-parser td,
+.row-error-internal td {
+  background: rgba(148, 163, 184, 0.12) !important;
+}
+
+.error-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.error-chip,
+.error-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.error-badge {
+  margin-right: 6px;
+}
+
+.error-lexer {
+  border-color: rgba(251, 113, 133, 0.48);
+  background: rgba(251, 113, 133, 0.16);
+  color: #fecdd3;
+}
+
+.error-syntax {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.16);
+  color: #fde68a;
+}
+
+.error-semantic {
+  border-color: rgba(168, 85, 247, 0.5);
+  background: rgba(168, 85, 247, 0.16);
+  color: #e9d5ff;
+}
+
+.error-grammar {
+  border-color: rgba(234, 179, 8, 0.5);
+  background: rgba(234, 179, 8, 0.16);
+  color: #fef08a;
+}
+
+.error-parser,
+.error-internal {
+  border-color: rgba(148, 163, 184, 0.38);
+  background: rgba(148, 163, 184, 0.14);
+  color: #cbd5e1;
+}
+
+.error-derived {
+  display: inline-flex;
+  margin-top: 5px;
+  border: 1px solid rgba(245, 158, 11, 0.36);
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #fcd34d;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.lexer-error-notice,
+.errors-empty-success {
+  margin-bottom: 12px;
+  border: 1px solid rgba(251, 113, 133, 0.28);
+  border-radius: 8px;
+  background: rgba(251, 113, 133, 0.08);
+  color: #fecdd3;
+  padding: 10px 12px;
+}
+
+.lexer-error-notice code {
+  display: inline-flex;
+  margin-left: 4px;
+  border-radius: 5px;
+  background: rgba(251, 113, 133, 0.15);
+  color: #ffe4e6;
+  padding: 1px 6px;
+}
+
+.errors-empty-success {
+  display: grid;
+  min-height: 128px;
+  place-items: center start;
+  border-color: rgba(34, 197, 94, 0.34);
+  background: var(--ok-soft);
+  color: #86efac;
+  font-weight: 800;
+}
+
 .graph-container {
   max-height: 600px;
 }

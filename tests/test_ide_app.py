@@ -151,3 +151,16 @@ def test_ide_html_exposes_only_required_parser_methods() -> None:
     assert "<option>LALR(1)</option>" in html
     assert "<option>LR(0)</option>" not in html
     assert 'id="lexicon-text"' in html
+
+
+def test_ide_frontend_classifies_error_types() -> None:
+    app_js = Path("src/dlp_parserstudio/ide/static/app.js").read_text(encoding="utf-8")
+    styles = Path("src/dlp_parserstudio/ide/static/styles.css").read_text(encoding="utf-8")
+
+    assert "function normalizeErrorType" in app_js
+    assert "function getErrorBadge" in app_js
+    assert "function getErrorSeverity" in app_js
+    assert "derivado por errores lexicos previos" in app_js
+    assert ".error-summary" in styles
+    assert ".error-badge" in styles
+    assert ".errors-empty-success" in styles

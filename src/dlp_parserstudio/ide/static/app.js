@@ -90,7 +90,7 @@ async function render(result) {
   renderHTMLOrEmpty("conflicts-output", renderConflictsTable(result.conflicts));
   renderHTMLOrEmpty("branches-output", renderBranches(result.parallel_branches));
   renderHTMLOrEmpty("translation-output", renderTranslation(result.translation));
-  renderHTMLOrEmpty("errors-output", renderErrorsTable(result.errors));
+  renderHTMLOrEmpty("errors-output", renderErrorsPanel(result.errors));
   await renderAutomatonPanel();
   await renderTree();
 }
@@ -242,15 +242,62 @@ function renderConflictsTable(conflicts) {
   return html;
 }
 
+function renderErrorsPanel(errors) {
+  if (!errors || errors.length === 0) {
+    return `<div class="errors-empty-success">Sin errores detectados</div>`;
+  }
+
+  const normalized = normalizeErrors(errors);
+  const lexerNotice = renderLexerErrorNotice(normalized);
+  return `${renderErrorSummary(normalized)}${lexerNotice}${renderErrorsTable(normalized)}`;
+}
+
+function renderErrorSummary(errors) {
+  const counts = new Map();
+  for (const error of errors) {
+    counts.set(error.normalizedType, (counts.get(error.normalizedType) || 0) + 1);
+  }
+
+  const order = [
+    "Lexer Error",
+    "Syntax Error",
+    "Semantic Error",
+    "Grammar Error",
+    "Parser Error",
+    "Internal Error",
+  ];
+
+  let html = `<div class="error-summary">`;
+  for (const type of order) {
+    const count = counts.get(type) || 0;
+    const label = count === 1 ? type : `${type}s`;
+    html += `<span class="error-chip error-${getErrorSeverity({ normalizedType: type })}">`;
+    html += `<strong>${count}</strong> ${escapeHtml(label)}`;
+    html += `</span>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function renderLexerErrorNotice(errors) {
+  const lexical = errors.filter((error) => error.normalizedType === "Lexer Error");
+  if (lexical.length === 0) return "";
+
+  const tokens = [...new Set(lexical.map((error) => error.token).filter(Boolean))];
+  const tokenText = tokens.length ? ` ${tokens.map((token) => `<code>${escapeHtml(token)}</code>`).join(" ")}` : "";
+  return `<div class="lexer-error-notice">El lexer no reconocio estos caracteres del input:${tokenText}</div>`;
+}
+
 function renderErrorsTable(errors) {
-  if (!errors || errors.length === 0) return null;
   let html = `<table class="parse-table"><thead><tr>`;
-  html += `<th>#</th><th>Fuente</th><th>Mensaje</th><th>Linea</th><th>Columna</th><th>Token</th>`;
+  html += `<th>#</th><th>Tipo</th><th>Fuente</th><th>Mensaje</th><th>Linea</th><th>Columna</th><th>Token</th>`;
   html += `</tr></thead><tbody>`;
   for (let i = 0; i < errors.length; i++) {
     const error = errors[i];
-    html += `<tr class="row-error">`;
+    const severity = getErrorSeverity(error);
+    html += `<tr class="row-error row-error-${severity}">`;
     html += `<td>${i + 1}</td>`;
+    html += `<td>${getErrorBadge(error)}</td>`;
     html += `<td>${escapeHtml(error.source || "-")}</td>`;
     html += `<td>${escapeHtml(error.message || "")}</td>`;
     html += `<td>${error.line ?? "-"}</td>`;
@@ -260,6 +307,73 @@ function renderErrorsTable(errors) {
   }
   html += `</tbody></table>`;
   return html;
+}
+
+function normalizeErrors(errors) {
+  const hasLexerErrors = errors.some((error) => normalizeErrorType(error) === "Lexer Error");
+  return errors.map((error) => {
+    const normalizedType = normalizeErrorType(error);
+    const message = error.message || error.mensaje || "";
+    const token = error.token || "";
+    const isCascade = hasLexerErrors
+      && normalizedType === "Syntax Error"
+      && (/unexpected token/i.test(message) || token === "$");
+    return {
+      ...error,
+      source: error.source || error.fuente || "-",
+      message,
+      token,
+      normalizedType,
+      isCascade,
+    };
+  });
+}
+
+function normalizeErrorType(error) {
+  const source = String(error.source || error.fuente || "").toLowerCase();
+  const explicitType = String(error.type || error.tipo || "").toLowerCase();
+  const message = String(error.message || error.mensaje || "").toLowerCase();
+
+  if (source === "lexer" || explicitType.includes("lexer")) return "Lexer Error";
+  if (source === "parser") return "Syntax Error";
+  if (source === "semantic" || explicitType.includes("semantic")) return "Semantic Error";
+  if (
+    ["grammar", "yapar", "antlr", "method"].includes(source)
+    || explicitType.includes("grammar")
+    || /production|productions|undefined token|token.*undefined|not declared|no definido|conflict|first\/follow|first|follow|grammar|yapar|antlr/.test(message)
+  ) {
+    return "Grammar Error";
+  }
+  if (/unexpected token|syntax|parse error|no ll\(1\) production|expected .* found/.test(message)) {
+    return "Syntax Error";
+  }
+  if (/lexical error|unexpected character|caracter inesperado/.test(message)) {
+    return "Lexer Error";
+  }
+  if (source === "internal" || source === "system" || source === "frontend") {
+    return "Internal Error";
+  }
+  if (explicitType.includes("parser")) return "Parser Error";
+  return "Internal Error";
+}
+
+function getErrorBadge(error) {
+  const severity = getErrorSeverity(error);
+  const type = error.normalizedType || normalizeErrorType(error);
+  const cascade = error.isCascade
+    ? `<span class="error-derived">derivado por errores lexicos previos</span>`
+    : "";
+  return `<span class="error-badge error-${severity}">${escapeHtml(type)}</span>${cascade}`;
+}
+
+function getErrorSeverity(error) {
+  const type = error.normalizedType || normalizeErrorType(error);
+  if (type === "Lexer Error") return "lexer";
+  if (type === "Syntax Error") return "syntax";
+  if (type === "Semantic Error") return "semantic";
+  if (type === "Grammar Error") return "grammar";
+  if (type === "Parser Error") return "parser";
+  return "internal";
 }
 
 function renderBranches(branches) {
@@ -494,7 +608,7 @@ function renderError(error) {
   $("summary-label").textContent = "";
   renderHTMLOrEmpty(
     "errors-output",
-    renderErrorsTable([
+    renderErrorsPanel([
       {
         source: "frontend",
         message: String(error),
