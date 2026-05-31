@@ -83,7 +83,7 @@ function render(result) {
     FIRST: result.first,
     FOLLOW: result.follow,
   });
-  setOutput("automaton-output", renderAutomaton(result.lr0_automaton));
+  setOutput("automaton-output", renderAutomata(result));
   setOutput("tables-output", result.tables);
   setOutput("steps-output", result.steps);
   setOutput("conflicts-output", result.conflicts);
@@ -92,9 +92,26 @@ function render(result) {
   renderTree();
 }
 
+function renderAutomata(result) {
+  const automata = {};
+
+  if (result.lr0_automaton) {
+    automata["LR(0) base"] = renderAutomaton(result.lr0_automaton);
+  }
+  if (result.lr1_automaton) {
+    automata["LR(1) canonico"] = renderAutomaton(result.lr1_automaton);
+  }
+  if (result.lalr_automaton) {
+    automata["LALR(1) fusionado"] = renderAutomaton(result.lalr_automaton);
+  }
+
+  return automata;
+}
+
 function renderAutomaton(automaton) {
   if (!automaton) return null;
   return {
+    kind: automaton.kind,
     states: automaton.states,
     transitions: automaton.transitions,
     dot: automaton.dot,

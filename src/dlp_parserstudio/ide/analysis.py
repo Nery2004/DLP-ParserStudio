@@ -100,6 +100,8 @@ def analyze_source(
         "first": {},
         "follow": {},
         "lr0_automaton": None,
+        "lr1_automaton": None,
+        "lalr_automaton": None,
         "tables": {},
         "steps": [],
         "accepted": False,
@@ -113,12 +115,10 @@ def analyze_source(
         rules = loads_yalex(yalex_text)
         lexer = YALexLexer(rules)
         grammar = loads_yapar(yapar_text)
-        tokens = lexer.tokenize(input_text)
+        tokens, lexical_errors = _tokenize_collecting_errors(lexer, input_text)
+        errors.extend(lexical_errors)
     except YALexLoaderError as error:
         errors.append(_error("yalex", error.message, error.line, error.column))
-        return result
-    except LexicalError as error:
-        errors.append(_error("lexer", str(error), error.line, error.column, error.character))
         return result
     except YaparLoaderError as error:
         errors.append(_error("yapar", str(error), error.line, error.column))
@@ -186,6 +186,50 @@ def loads_yalex(text: str) -> list[LexerRule]:
     return rules
 
 
+def _tokenize_collecting_errors(
+    lexer: YALexLexer,
+    text: str,
+) -> tuple[list[Token], list[dict[str, Any]]]:
+    tokens: list[Token] = []
+    errors: list[dict[str, Any]] = []
+    position = 0
+    line = 1
+    column = 1
+
+    while position < len(text):
+        match = lexer._best_match(text, position)
+
+        if match is None:
+            character = text[position]
+            error = LexicalError(character, line, column)
+            errors.append(_error("lexer", str(error), line, column, character))
+            line, column = _advance_text_position(character, line, column)
+            position += 1
+            continue
+
+        rule, lexeme = match
+        token_line = line
+        token_column = column
+        line, column = _advance_text_position(lexeme, line, column)
+        position += len(lexeme)
+
+        if not rule.skip:
+            tokens.append(Token(rule.type, lexeme, token_line, token_column))
+
+    return tokens, errors
+
+
+def _advance_text_position(lexeme: str, line: int, column: int) -> tuple[int, int]:
+    for character in lexeme:
+        if character == "\n":
+            line += 1
+            column = 1
+        else:
+            column += 1
+
+    return line, column
+
+
 def _analyze_ll1(grammar: Grammar, tokens: list[Token], result: dict[str, Any]) -> None:
     table = build_ll1_table(grammar)
     parser = LL1Parser(grammar, table=table, raise_on_conflicts=False)
@@ -198,7 +242,10 @@ def _analyze_ll1(grammar: Grammar, tokens: list[Token], result: dict[str, Any]) 
     result["syntax_tree"] = _syntax_tree_to_dict(parse_result.syntax_tree)
 
     if parse_result.error:
-        result["errors"].append(_parse_error_from_tokens(parse_result.error, tokens))
+        parser_errors = _collect_ll1_syntax_errors(grammar, table, tokens)
+        result["errors"].extend(
+            parser_errors or [_parse_error_from_tokens(parse_result.error, tokens)]
+        )
 
 
 def _analyze_lr0(grammar: Grammar, tokens: list[Token], result: dict[str, Any]) -> None:
@@ -207,9 +254,14 @@ def _analyze_lr0(grammar: Grammar, tokens: list[Token], result: dict[str, Any]) 
 
     result["accepted"] = parse_result["accepted"]
     result["steps"] = parse_result["steps"]
-    result["errors"].extend(parse_result["errors"])
+    result["errors"].extend(
+        _collect_lr_syntax_errors(table, tokens)
+        if not parse_result["accepted"]
+        else parse_result["errors"]
+    )
     result["syntax_tree"] = parse_result["syntax_tree"]
     result["tables"].update(_action_goto_tables_to_dict(table))
+    result["tables"]["reductions"] = _reduction_table_to_dict(table, "LR(0): todos los terminales")
     result["conflicts"] = [_lr_conflict_to_dict(conflict) for conflict in table.conflicts]
     result["parallel_branches"] = _parallel_branches_to_dict(grammar, tokens, table)
 
@@ -221,9 +273,14 @@ def _analyze_slr(grammar: Grammar, tokens: list[Token], result: dict[str, Any]) 
 
     result["accepted"] = parse_result.accepted
     result["steps"] = [_step_to_dict(step) for step in parse_result.steps]
-    result["errors"].extend(_structured_errors_to_dict(parse_result.errors, "parser"))
+    result["errors"].extend(
+        _collect_lr_syntax_errors(table, tokens)
+        if not parse_result.accepted
+        else _structured_errors_to_dict(parse_result.errors, "parser")
+    )
     result["syntax_tree"] = _syntax_tree_to_dict(parse_result.syntax_tree)
     result["tables"].update(_action_goto_tables_to_dict(table))
+    result["tables"]["reductions"] = _reduction_table_to_dict(table, "SLR(1): FOLLOW global del LHS")
     result["conflicts"] = [_lr_conflict_to_dict(conflict) for conflict in table.conflicts]
     result["parallel_branches"] = _parallel_branches_to_dict(grammar, tokens, table)
 
@@ -235,9 +292,23 @@ def _analyze_lalr(grammar: Grammar, tokens: list[Token], result: dict[str, Any])
 
     result["accepted"] = parse_result.accepted
     result["steps"] = [_step_to_dict(step) for step in parse_result.steps]
-    result["errors"].extend(_structured_errors_to_dict(parse_result.errors, "parser"))
+    result["errors"].extend(
+        _collect_lr_syntax_errors(table, tokens)
+        if not parse_result.accepted
+        else _structured_errors_to_dict(parse_result.errors, "parser")
+    )
     result["syntax_tree"] = _syntax_tree_to_dict(parse_result.syntax_tree)
     result["tables"].update(_action_goto_tables_to_dict(table))
+    result["tables"]["reductions"] = _reduction_table_to_dict(table, "LALR(1): lookahead LR(1) fusionado")
+    if table.automaton is not None:
+        result["lr1_automaton"] = _lr1_automaton_to_dict(
+            table.automaton.canonical_automaton,
+            "LR(1) canonico",
+        )
+        result["lalr_automaton"] = _lr1_automaton_to_dict(
+            table.automaton,
+            "LALR(1) fusionado por nucleo",
+        )
     result["conflicts"] = [_lr_conflict_to_dict(conflict) for conflict in table.conflicts]
     result["parallel_branches"] = _parallel_branches_to_dict(grammar, tokens, table)
 
@@ -437,10 +508,69 @@ def _lr0_automaton_to_dict(automaton: LR0Automaton) -> dict[str, Any]:
     ]
 
     return {
+        "kind": "LR(0)",
         "states": states,
         "transitions": transitions,
         "dot": automaton.to_dot(),
     }
+
+
+def _lr1_automaton_to_dict(automaton: Any, kind: str) -> dict[str, Any]:
+    states = []
+    for index, state in enumerate(automaton.states):
+        states.append(
+            {
+                "id": index,
+                "items": sorted(str(item) for item in state.items),
+                "core": sorted(
+                    f"{production.lhs.name} -> {' '.join(symbol.name for symbol in production.rhs) or 'epsilon'} @ {dot}"
+                    for production, dot in state.core
+                ),
+            }
+        )
+
+    transitions = [
+        {"from": source, "symbol": symbol.name, "to": target}
+        for (source, symbol), target in sorted(
+            automaton.transitions.items(),
+            key=lambda item: (item[0][0], item[0][1].name, item[1]),
+        )
+    ]
+
+    return {
+        "kind": kind,
+        "states": states,
+        "transitions": transitions,
+        "dot": _lr_items_to_dot(kind, states, transitions),
+    }
+
+
+def _lr_items_to_dot(
+    kind: str,
+    states: list[dict[str, Any]],
+    transitions: list[dict[str, Any]],
+) -> str:
+    graph_name = re.sub(r"[^A-Za-z0-9_]", "_", kind)
+    lines = [
+        f"digraph {graph_name} {{",
+        "  rankdir=LR;",
+        "  node [shape=box];",
+    ]
+
+    for state in states:
+        label = "\\n".join(_dot_escape(item) for item in state["items"])
+        lines.append(f'  I{state["id"]} [label="I{state["id"]}\\n{label}"];')
+
+    for transition in transitions:
+        lines.append(
+            (
+                f'  I{transition["from"]} -> I{transition["to"]} '
+                f'[label="{_dot_escape(transition["symbol"])}"];'
+            )
+        )
+
+    lines.append("}")
+    return "\n".join(lines)
 
 
 def _ll1_table_to_dict(entries: Mapping[tuple[NonTerminal, Terminal], Production]) -> list[dict[str, str]]:
@@ -473,6 +603,22 @@ def _action_goto_tables_to_dict(table: Any) -> dict[str, list[dict[str, Any]]]:
         )
     ]
     return {"action": action, "goto": goto}
+
+
+def _reduction_table_to_dict(table: Any, source: str) -> list[dict[str, Any]]:
+    return [
+        {
+            "state": state,
+            "lookahead": terminal.name,
+            "production": _format_production(action.production),
+            "source": source,
+        }
+        for (state, terminal), action in sorted(
+            table.action.items(),
+            key=lambda item: (item[0][0], item[0][1].name),
+        )
+        if action.kind == "reduce" and action.production is not None
+    ]
 
 
 def _parallel_branches_to_dict(grammar: Grammar, tokens: list[Token], table: Any) -> list[dict[str, Any]]:
@@ -519,6 +665,167 @@ def _structured_errors_to_dict(errors: Iterable[Any], source: str) -> list[dict[
         _error(source, error.message, error.line, error.column, error.token)
         for error in errors
     ]
+
+
+def _collect_ll1_syntax_errors(
+    grammar: Grammar,
+    table: Any,
+    tokens: list[Token],
+    *,
+    max_errors: int = 25,
+) -> list[dict[str, Any]]:
+    input_tokens = _normalize_input(tokens)
+    stack: list[Symbol] = [EOF, grammar.start_symbol]
+    position = 0
+    errors: list[dict[str, Any]] = []
+    max_steps = max(200, len(input_tokens) * 40)
+
+    for _ in range(max_steps):
+        if not stack or len(errors) >= max_errors:
+            break
+
+        top = stack.pop()
+        current = input_tokens[position]
+
+        if top == EOF and current.terminal == EOF:
+            break
+
+        if isinstance(top, Terminal):
+            if top == current.terminal:
+                position += 1
+                continue
+
+            errors.append(
+                _error(
+                    "parser",
+                    f"Expected {top.name}, found {current.terminal.name}",
+                    current.line,
+                    current.column,
+                    current.terminal.name,
+                )
+            )
+            if current.terminal != EOF:
+                position += 1
+                stack.append(top)
+            continue
+
+        if isinstance(top, NonTerminal):
+            production = table.get(top, current.terminal)
+            if production is None:
+                errors.append(
+                    _error(
+                        "parser",
+                        f"No LL(1) production for {top.name} with lookahead {current.terminal.name}",
+                        current.line,
+                        current.column,
+                        current.terminal.name,
+                    )
+                )
+                if current.terminal != EOF:
+                    position += 1
+                continue
+
+            stack.extend(
+                reversed(
+                    tuple(
+                        symbol
+                        for symbol in production.rhs
+                        if symbol.name.lower() not in {"epsilon", "eps", "ε"}
+                    )
+                )
+            )
+
+    return _dedupe_errors(errors)
+
+
+def _collect_lr_syntax_errors(
+    table: Any,
+    tokens: list[Token],
+    *,
+    max_errors: int = 25,
+) -> list[dict[str, Any]]:
+    input_tokens = _normalize_input(tokens)
+    stack: list[int | Symbol] = [0]
+    position = 0
+    errors: list[dict[str, Any]] = []
+    max_steps = max(200, len(input_tokens) * 50)
+
+    for _ in range(max_steps):
+        if len(errors) >= max_errors:
+            break
+
+        state = _top_state(stack)
+        current = input_tokens[position]
+        action = table.action_for(state, current.terminal)
+
+        if action.kind == "shift":
+            stack.extend([current.terminal, action.target])
+            position += 1
+            continue
+
+        if action.kind == "reduce" and action.production is not None:
+            production = action.production
+            rhs_length = len(production.rhs)
+            if rhs_length:
+                del stack[-2 * rhs_length :]
+
+            goto_source = _top_state(stack)
+            target = table.goto_for(goto_source, production.lhs)
+            if target is None:
+                errors.append(
+                    _error(
+                        "parser",
+                        f"Missing GOTO[{goto_source}, {production.lhs.name}] after reduction",
+                        current.line,
+                        current.column,
+                        current.terminal.name,
+                    )
+                )
+                if current.terminal == EOF:
+                    break
+                position += 1
+                continue
+
+            stack.extend([production.lhs, target])
+            continue
+
+        if action.kind == "accept":
+            break
+
+        errors.append(
+            _error(
+                "parser",
+                f"Unexpected token {current.terminal.name} in state {state}",
+                current.line,
+                current.column,
+                current.terminal.name,
+            )
+        )
+        if current.terminal == EOF:
+            break
+        position += 1
+
+    return _dedupe_errors(errors)
+
+
+def _dedupe_errors(errors: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[tuple[Any, ...]] = set()
+    result: list[dict[str, Any]] = []
+
+    for error in errors:
+        key = (
+            error.get("source"),
+            error.get("message"),
+            error.get("line"),
+            error.get("column"),
+            error.get("token"),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(error)
+
+    return result
 
 
 def _syntax_tree_to_dict(tree: SyntaxTree | None) -> dict[str, Any] | None:
@@ -629,3 +936,7 @@ def _action_to_string(action: Any) -> str:
 def _format_production(production: Production) -> str:
     rhs = " ".join(symbol.name for symbol in production.rhs)
     return f"{production.lhs.name} -> {rhs or 'epsilon'}"
+
+
+def _dot_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")

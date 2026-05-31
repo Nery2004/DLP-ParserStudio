@@ -53,6 +53,46 @@ def test_ide_analysis_reports_lexical_error_with_location() -> None:
     assert result["errors"][0]["token"] == "?"
 
 
+def test_ide_analysis_reports_multiple_lexical_errors() -> None:
+    result = analyze_source(YALEX, YAPAR, "12 ? + @ 7", "SLR(1)")
+
+    lexical_errors = [error for error in result["errors"] if error["source"] == "lexer"]
+    assert [error["token"] for error in lexical_errors] == ["?", "@"]
+    assert [error["column"] for error in lexical_errors] == [4, 8]
+
+
+def test_ide_analysis_reports_multiple_parser_errors_when_recoverable() -> None:
+    result = analyze_source(YALEX, YAPAR, "12 7 8", "SLR(1)")
+
+    parser_errors = [error for error in result["errors"] if error["source"] == "parser"]
+    assert len(parser_errors) >= 2
+    assert [error["token"] for error in parser_errors[:2]] == ["NUMBER", "NUMBER"]
+
+
+def test_ide_lalr_includes_lr0_lr1_and_merged_lalr_automata() -> None:
+    result = analyze_source(YALEX, YAPAR, "12 + 7", "LALR(1)")
+
+    assert result["lr0_automaton"]["kind"] == "LR(0)"
+    assert result["lr1_automaton"]["kind"] == "LR(1) canonico"
+    assert result["lalr_automaton"]["kind"] == "LALR(1) fusionado por nucleo"
+    assert "digraph" in result["lr1_automaton"]["dot"]
+    assert "digraph" in result["lalr_automaton"]["dot"]
+
+
+def test_ide_tables_explain_reduction_sources() -> None:
+    slr = analyze_source(YALEX, YAPAR, "12 + 7", "SLR(1)")
+    lalr = analyze_source(YALEX, YAPAR, "12 + 7", "LALR(1)")
+
+    assert slr["tables"]["reductions"]
+    assert lalr["tables"]["reductions"]
+    assert {entry["source"] for entry in slr["tables"]["reductions"]} == {
+        "SLR(1): FOLLOW global del LHS"
+    }
+    assert {entry["source"] for entry in lalr["tables"]["reductions"]} == {
+        "LALR(1): lookahead LR(1) fusionado"
+    }
+
+
 def test_yalex_text_loader_supports_skip_rules() -> None:
     rules = loads_yalex(YALEX)
 
