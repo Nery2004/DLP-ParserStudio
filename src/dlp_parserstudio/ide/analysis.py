@@ -110,6 +110,7 @@ def analyze_source(
         "accepted": False,
         "conflicts": [],
         "parallel_branches": [],
+        "parallel_executor": None,
         "syntax_tree": None,
         "translation": None,
         "errors": errors,
@@ -288,7 +289,9 @@ def _analyze_lr0(grammar: Grammar, tokens: list[Token], result: dict[str, Any]) 
     result["tables"].update(_action_goto_tables_to_dict(table))
     result["tables"]["reductions"] = _reduction_table_to_dict(table, "LR(0): todos los terminales")
     result["conflicts"] = [_lr_conflict_to_dict(conflict) for conflict in table.conflicts]
-    result["parallel_branches"] = _parallel_branches_to_dict(grammar, tokens, table)
+    parallel = _parallel_conflict_to_dict(grammar, tokens, table)
+    result["parallel_branches"] = parallel["branches"]
+    result["parallel_executor"] = parallel["executor"]
 
 
 def _analyze_slr(grammar: Grammar, tokens: list[Token], result: dict[str, Any]) -> None:
@@ -307,7 +310,9 @@ def _analyze_slr(grammar: Grammar, tokens: list[Token], result: dict[str, Any]) 
     result["tables"].update(_action_goto_tables_to_dict(table))
     result["tables"]["reductions"] = _reduction_table_to_dict(table, "SLR(1): FOLLOW global del LHS")
     result["conflicts"] = [_lr_conflict_to_dict(conflict) for conflict in table.conflicts]
-    result["parallel_branches"] = _parallel_branches_to_dict(grammar, tokens, table)
+    parallel = _parallel_conflict_to_dict(grammar, tokens, table)
+    result["parallel_branches"] = parallel["branches"]
+    result["parallel_executor"] = parallel["executor"]
 
 
 def _analyze_lalr(grammar: Grammar, tokens: list[Token], result: dict[str, Any]) -> None:
@@ -335,7 +340,9 @@ def _analyze_lalr(grammar: Grammar, tokens: list[Token], result: dict[str, Any])
             "LALR(1) fusionado por nucleo",
         )
     result["conflicts"] = [_lr_conflict_to_dict(conflict) for conflict in table.conflicts]
-    result["parallel_branches"] = _parallel_branches_to_dict(grammar, tokens, table)
+    parallel = _parallel_conflict_to_dict(grammar, tokens, table)
+    result["parallel_branches"] = parallel["branches"]
+    result["parallel_executor"] = parallel["executor"]
 
 
 def _build_lr0_table(grammar: Grammar) -> _LRParsingTable:
@@ -715,12 +722,20 @@ def _reduction_table_to_dict(table: Any, source: str) -> list[dict[str, Any]]:
     ]
 
 
-def _parallel_branches_to_dict(grammar: Grammar, tokens: list[Token], table: Any) -> list[dict[str, Any]]:
+def _parallel_conflict_to_dict(grammar: Grammar, tokens: list[Token], table: Any) -> dict[str, Any]:
     if not any(conflict.kind == "shift/reduce" for conflict in getattr(table, "conflicts", ())):
-        return []
+        return {
+            "branches": [],
+            "executor": {
+                "type": "none",
+                "note": "No shift/reduce conflicts available for branch exploration.",
+                "conflict_state": None,
+                "lookahead": None,
+            },
+        }
 
     exploration = explore_shift_reduce_conflict(grammar, tokens, table=table)
-    return [
+    branches = [
         {
             "name": branch.name,
             "chosen_action": branch.chosen_action,
@@ -732,6 +747,19 @@ def _parallel_branches_to_dict(grammar: Grammar, tokens: list[Token], table: Any
         }
         for branch in exploration.branches
     ]
+    return {
+        "branches": branches,
+        "executor": {
+            "type": exploration.executor_type,
+            "note": exploration.executor_note,
+            "conflict_state": exploration.conflict_state,
+            "lookahead": exploration.lookahead,
+        },
+    }
+
+
+def _parallel_branches_to_dict(grammar: Grammar, tokens: list[Token], table: Any) -> list[dict[str, Any]]:
+    return _parallel_conflict_to_dict(grammar, tokens, table)["branches"]
 
 
 def _ll1_conflict_to_dict(conflict: Any) -> dict[str, str]:

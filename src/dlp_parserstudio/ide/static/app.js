@@ -85,7 +85,7 @@ async function render(result) {
   renderHTMLOrEmpty("tables-output", renderActionGotoTables(result.tables));
   renderHTMLOrEmpty("steps-output", renderStepsTable(result.steps));
   renderHTMLOrEmpty("conflicts-output", renderConflictsTable(result.conflicts));
-  renderHTMLOrEmpty("branches-output", renderBranches(result.parallel_branches));
+  renderHTMLOrEmpty("branches-output", renderBranches(result.parallel_branches, result.parallel_executor));
   renderHTMLOrEmpty("translation-output", renderTranslation(result.translation));
   renderHTMLOrEmpty("errors-output", renderErrorsPanel(result.errors));
   await renderAutomatonPanel();
@@ -391,9 +391,9 @@ function getErrorSeverity(error) {
   return "internal";
 }
 
-function renderBranches(branches) {
+function renderBranches(branches, executor) {
   if (!branches || branches.length === 0) return null;
-  let html = "";
+  let html = renderParallelExecutor(executor);
   for (const branch of branches) {
     const isAccepted = branch.result === "accepted";
     const statusClass = isAccepted ? "branch-ok" : "branch-fail";
@@ -418,6 +418,15 @@ function renderBranches(branches) {
     }
     html += `</div>`;
   }
+  return html;
+}
+
+function renderParallelExecutor(executor) {
+  if (!executor || executor.type === "none") return "";
+  let html = `<div class="parallel-executor">`;
+  html += `<span>Executor: <strong>${escapeHtml(executor.type)}</strong></span>`;
+  html += `<span>${escapeHtml(executor.note || "")}</span>`;
+  html += `</div>`;
   return html;
 }
 

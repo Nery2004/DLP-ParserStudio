@@ -1,13 +1,18 @@
-# Lexer educativo para MessiScript.
+# Lexer educativo para un subconjunto sintactico de MessiScript.
 
-ARRANCA   arranca
-GOL       gol
-PASE      pase
-MARCA     marca
-GRITA     grita
-FIN       fin
-NUMBER    [0-9]+
-STRING    "[^"]*"
-ID        [a-zA-Z_][a-zA-Z0-9_]*
-SEMI      ;
-WS        [ \t\r\n]+  skip
+LA_AGARRA_MESSI      la[ \t]+agarra[ \t]+messi
+LA_MUEVE_DERECHA     la[ \t]+mueve[ \t]+messi[ \t]+por[ \t]+la[ \t]+derecha
+LA_MUEVE_IZQUIERDA   la[ \t]+mueve[ \t]+messi[ \t]+por[ \t]+la[ \t]+izquierda
+ENCARA_MESSI         encara[ \t]+messi
+ANKARA_MESSI         ankara[ \t]+messi
+JUEGA_MESSI          juega[ \t]+messi
+LA_PISA_MESSI        la[ \t]+pisa[ \t]+messi
+SIGUE_MESSI          sigue[ \t]+messi
+VUELVE_MESSI         vuelve[ \t]+messi
+CORRE_MESSI          corre[ \t]+messi
+AMAGA_MESSI          amaga[ \t]+messi
+VA_MESSI             va[ \t]+messi
+GOL                  ¡gol!
+DOT                  \.
+ID                   [a-zA-Z_][a-zA-Z0-9_]*
+WS                   [ \t\r\n]+  skip

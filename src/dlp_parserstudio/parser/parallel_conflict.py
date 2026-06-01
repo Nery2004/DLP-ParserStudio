@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
+import sys
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Iterable
 
@@ -60,6 +61,8 @@ class ParallelConflictResult:
     branches: tuple[ConflictBranch, ...]
     conflict_state: int | None = None
     lookahead: str | None = None
+    executor_type: str = "none"
+    executor_note: str = "No shift/reduce conflict was explored."
 
     def __iter__(self):
         return iter(self.branches)
@@ -99,6 +102,7 @@ class ParallelConflictExplorer:
         tokens: Iterable[object],
         *,
         max_steps: int = 1000,
+        executor: str = "auto",
     ) -> ParallelConflictResult:
         input_tokens = _normalize_input(tokens)
         conflict_point = _run_until_shift_reduce_conflict(
@@ -116,25 +120,21 @@ class ParallelConflictExplorer:
             ("reduce", reduce_action),
         ]
 
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            futures = [
-                executor.submit(
-                    _run_branch,
-                    self.table,
-                    input_tokens,
-                    conflict_point,
-                    name,
-                    action,
-                    max_steps,
-                )
-                for name, action in jobs
-            ]
-            branches = tuple(future.result() for future in futures)
+        branches, executor_type, executor_note = _run_branch_jobs(
+            self.table,
+            input_tokens,
+            conflict_point,
+            jobs,
+            max_steps,
+            executor,
+        )
 
         return ParallelConflictResult(
             branches,
             conflict_state=conflict_point.conflict.state,
             lookahead=conflict_point.conflict.lookahead.name,
+            executor_type=executor_type,
+            executor_note=executor_note,
         )
 
 
@@ -144,12 +144,14 @@ def explore_shift_reduce_conflict(
     *,
     table: Any | None = None,
     max_steps: int = 1000,
+    executor: str = "auto",
 ) -> ParallelConflictResult:
     """Explore the first reachable shift/reduce conflict for an input."""
 
     return ParallelConflictExplorer(table or build_slr_table(grammar)).explore(
         tokens,
         max_steps=max_steps,
+        executor=executor,
     )
 
 
@@ -159,6 +161,7 @@ def explore_shift_reduce_branches(
     *,
     table: Any | None = None,
     max_steps: int = 1000,
+    executor: str = "auto",
 ) -> tuple[ConflictBranch, ...]:
     """Return only the branch list for the first reachable shift/reduce conflict."""
 
@@ -167,7 +170,108 @@ def explore_shift_reduce_branches(
         tokens,
         table=table,
         max_steps=max_steps,
+        executor=executor,
     ).branches
+
+
+def _run_branch_jobs(
+    table: Any,
+    input_tokens: list[_InputToken],
+    conflict_point: _ConflictPoint,
+    jobs: list[tuple[str, Any]],
+    max_steps: int,
+    executor: str,
+) -> tuple[tuple[ConflictBranch, ...], str, str]:
+    executor = executor.lower()
+    if executor not in {"auto", "process", "thread"}:
+        raise ValueError("executor must be 'auto', 'process', or 'thread'.")
+
+    if executor in {"auto", "process"}:
+        if not _can_try_process_executor():
+            branches = _run_jobs_with_executor(
+                ThreadPoolExecutor,
+                table,
+                input_tokens,
+                conflict_point,
+                jobs,
+                max_steps,
+            )
+            return (
+                branches,
+                "thread",
+                "ProcessPoolExecutor unavailable in this runtime; used ThreadPoolExecutor fallback.",
+            )
+
+        try:
+            return (
+                _run_jobs_with_executor(
+                    ProcessPoolExecutor,
+                    table,
+                    input_tokens,
+                    conflict_point,
+                    jobs,
+                    max_steps,
+                ),
+                "process",
+                "ProcessPoolExecutor used for branch exploration.",
+            )
+        except Exception as error:
+            branches = _run_jobs_with_executor(
+                ThreadPoolExecutor,
+                table,
+                input_tokens,
+                conflict_point,
+                jobs,
+                max_steps,
+            )
+            return (
+                branches,
+                "thread",
+                f"ProcessPoolExecutor unavailable; used ThreadPoolExecutor fallback ({type(error).__name__}).",
+            )
+
+    return (
+        _run_jobs_with_executor(
+            ThreadPoolExecutor,
+            table,
+            input_tokens,
+            conflict_point,
+            jobs,
+            max_steps,
+        ),
+        "thread",
+        "ThreadPoolExecutor used as requested.",
+    )
+
+
+def _can_try_process_executor() -> bool:
+    main_module = sys.modules.get("__main__")
+    main_file = getattr(main_module, "__file__", "")
+    return bool(main_file and not str(main_file).startswith("<"))
+
+
+def _run_jobs_with_executor(
+    executor_cls: Any,
+    table: Any,
+    input_tokens: list[_InputToken],
+    conflict_point: _ConflictPoint,
+    jobs: list[tuple[str, Any]],
+    max_steps: int,
+) -> tuple[ConflictBranch, ...]:
+    with executor_cls(max_workers=2) as pool:
+        futures = [
+            pool.submit(
+                _run_branch,
+                table,
+                input_tokens,
+                conflict_point,
+                name,
+                action,
+                max_steps,
+            )
+            for name, action in jobs
+        ]
+        return tuple(future.result() for future in futures)
 
 
 def _run_until_shift_reduce_conflict(

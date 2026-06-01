@@ -161,6 +161,8 @@ E : E PLUS E | ID ;
     assert any(conflict["kind"] == "shift/reduce" for conflict in result["conflicts"])
     assert any("conflict" in entry["action"] for entry in result["tables"]["action"])
     assert {branch["name"] for branch in result["parallel_branches"]} == {"shift", "reduce"}
+    assert result["parallel_executor"]["type"] in {"process", "thread"}
+    assert result["parallel_executor"]["note"]
 
 
 def test_ide_automaton_state_metadata_is_available() -> None:

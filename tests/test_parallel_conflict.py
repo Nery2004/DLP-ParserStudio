@@ -5,6 +5,7 @@ from dlp_parserstudio.parser.parallel_conflict import (
     explore_shift_reduce_branches,
     explore_shift_reduce_conflict,
 )
+from dlp_parserstudio.parser import parallel_conflict
 from dlp_parserstudio.parser.slr import build_slr_table
 
 
@@ -34,6 +35,8 @@ def test_parallel_conflict_explores_shift_and_reduce_branches() -> None:
 
     assert result.conflict_state is not None
     assert result.lookahead == "+"
+    assert result.executor_type in {"process", "thread"}
+    assert result.executor_note
     assert len(result.branches) == 2
     assert {branch.name for branch in result.branches} == {"shift", "reduce"}
     assert {branch.result for branch in result.branches} == {"accepted"}
@@ -65,6 +68,36 @@ def test_parallel_conflict_can_return_only_branches() -> None:
 
     assert len(branches) == 2
     assert {branch.name for branch in branches} == {"shift", "reduce"}
+
+
+def test_parallel_conflict_can_force_thread_executor() -> None:
+    result = explore_shift_reduce_conflict(
+        build_ambiguous_expression_grammar(),
+        ["id", "+", "id", "+", "id"],
+        executor="thread",
+    )
+
+    assert result.executor_type == "thread"
+    assert "ThreadPoolExecutor" in result.executor_note
+    assert len(result.branches) == 2
+
+
+def test_parallel_conflict_falls_back_to_thread_executor(monkeypatch) -> None:
+    class BrokenProcessPool:
+        def __init__(self, *args, **kwargs) -> None:
+            raise RuntimeError("process pool unavailable")
+
+    monkeypatch.setattr(parallel_conflict, "ProcessPoolExecutor", BrokenProcessPool)
+
+    result = explore_shift_reduce_conflict(
+        build_ambiguous_expression_grammar(),
+        ["id", "+", "id", "+", "id"],
+        executor="auto",
+    )
+
+    assert result.executor_type == "thread"
+    assert "fallback" in result.executor_note
+    assert len(result.branches) == 2
 
 
 def test_parallel_conflict_marks_rejected_branches() -> None:

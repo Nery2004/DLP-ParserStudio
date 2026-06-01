@@ -1,16 +1,22 @@
-%token ARRANCA GOL PASE MARCA GRITA FIN NUMBER STRING ID SEMI
+%token LA_AGARRA_MESSI LA_MUEVE_DERECHA LA_MUEVE_IZQUIERDA ENCARA_MESSI ANKARA_MESSI JUEGA_MESSI LA_PISA_MESSI SIGUE_MESSI VUELVE_MESSI CORRE_MESSI AMAGA_MESSI VA_MESSI GOL DOT ID
 %ignore WS
 %start script
 
 %%
-script : ARRANCA SEMI body ;
-body : FIN SEMI
-     | command body ;
-command : goal
-        | pass
-        | mark
-        | shout ;
-goal : GOL ID SEMI ;
-pass : PASE ID ID SEMI ;
-mark : MARCA ID NUMBER SEMI ;
-shout : GRITA STRING SEMI ;
+script : LA_AGARRA_MESSI DOT body ;
+body : GOL DOT
+     | command DOT body ;
+command : movement
+        | assignment
+        | loop_marker ;
+movement : ENCARA_MESSI
+         | ANKARA_MESSI
+         | LA_MUEVE_DERECHA
+         | LA_MUEVE_IZQUIERDA
+         | JUEGA_MESSI
+         | LA_PISA_MESSI
+         | CORRE_MESSI
+         | AMAGA_MESSI ;
+assignment : VA_MESSI ID ID ;
+loop_marker : SIGUE_MESSI
+            | VUELVE_MESSI ;

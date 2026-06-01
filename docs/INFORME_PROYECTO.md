@@ -351,8 +351,13 @@ Funcionamiento:
 2. Crea dos ramas:
    - una aplicando `shift`,
    - otra aplicando `reduce`.
-3. Ejecuta ambas ramas con `ThreadPoolExecutor`.
-4. Cada rama registra stack, input restante, acción elegida, pasos y resultado.
+3. Intenta ejecutar ambas ramas con `ProcessPoolExecutor`.
+4. Si los objetos no son serializables, la plataforma no permite procesos o aparece un error controlado, usa `ThreadPoolExecutor` como fallback.
+5. Cada rama registra stack, input restante, acción elegida, pasos y resultado.
+
+`ProcessPoolExecutor` permite paralelismo por procesos cuando está disponible. `ThreadPoolExecutor` se conserva como fallback de concurrencia para la exploración educativa; no se presenta como paralelismo CPU real en CPython por la limitación del GIL.
+
+El resultado incluye metadatos `executor_type` y `executor_note`, serializados por la IDE como `parallel_executor`, para explicar si la exploración usó procesos o fallback por threads.
 
 Este modo no reemplaza al parser principal. Se usa como herramienta exploratoria para explicar conflictos.
 
@@ -542,22 +547,34 @@ Archivos:
 - `invalid_inputs.txt`
 - `README.md`
 
-Comandos definidos:
+MessiScript se modela como un subconjunto sintáctico educativo del repositorio `Erawaa/MessiScriptInterpreter`: https://github.com/Erawaa/MessiScriptInterpreter
 
-- `arranca;`
-- `gol nombre;`
-- `pase origen destino;`
-- `marca nombre numero;`
-- `grita "texto";`
-- `fin;`
+No se implementa el intérprete completo ni la semántica real. Solo se validan comandos y estructura sintáctica.
+
+Comandos soportados:
+
+- `la agarra messi.`
+- `¡gol!.`
+- `va messi nombre valor.`
+- `encara messi.`
+- `ankara messi.`
+- `la mueve messi por la derecha.`
+- `la mueve messi por la izquierda.`
+- `juega messi.`
+- `la pisa messi.`
+- `sigue messi.`
+- `vuelve messi.`
+- `corre messi.`
+- `amaga messi.`
 
 La gramática tiene símbolo inicial `script`:
 
 ```text
-script : ARRANCA SEMI commands FIN SEMI ;
+script : LA_AGARRA_MESSI DOT body ;
+body : GOL DOT | command DOT body ;
 ```
 
-Es un lenguaje de validación sintáctica; no interpreta lógica real.
+El programa debe iniciar con `la agarra messi.` y terminar con `¡gol!.`. Los comandos se separan con punto. Los marcadores `sigue messi.` y `vuelve messi.` se aceptan sintácticamente como subconjunto educativo, pero no ejecutan lógica de bucle.
 
 ### 17.5 FutLang
 

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from dlp_parserstudio.ide.analysis import analyze_source, loads_yalex
 from dlp_parserstudio.lexer.yalex import LexicalError, LexerRule, YALexLexer
 from dlp_parserstudio.parser.slr import SLRParser
 from dlp_parserstudio.parser.yapar_loader import load_yapar
@@ -39,19 +40,9 @@ def build_futlang_lexer() -> YALexLexer:
 
 def build_messiscript_lexer() -> YALexLexer:
     return YALexLexer(
-        [
-            LexerRule("ARRANCA", r"arranca"),
-            LexerRule("GOL", r"gol"),
-            LexerRule("PASE", r"pase"),
-            LexerRule("MARCA", r"marca"),
-            LexerRule("GRITA", r"grita"),
-            LexerRule("FIN", r"fin"),
-            LexerRule("NUMBER", r"[0-9]+"),
-            LexerRule("STRING", r'"[^"]*"'),
-            LexerRule("ID", r"[a-zA-Z_][a-zA-Z0-9_]*"),
-            LexerRule("SEMI", r";"),
-            LexerRule("WS", r"\s+", skip=True),
-        ]
+        loads_yalex(
+            Path("examples/messiscript/messiscript.yalex").read_text(encoding="utf-8")
+        )
     )
 
 
@@ -97,8 +88,11 @@ def test_futlang_valid_and_invalid_inputs() -> None:
 
 def test_messiscript_valid_and_invalid_inputs() -> None:
     lexer = build_messiscript_lexer()
+    base = Path("examples/messiscript")
+    parser = SLRParser(load_yapar(base / "messiscript.yapar"))
 
-    assert_valid_inputs("examples/messiscript", lexer, "messiscript.yapar")
+    source = (base / "valid_inputs.txt").read_text(encoding="utf-8")
+    assert parser.parse(lexer.tokenize(source)).accepted
     assert_invalid_inputs("examples/messiscript", lexer, "messiscript.yapar")
 
 
@@ -109,6 +103,38 @@ def test_messiscript_full_valid_inputs_file_is_accepted() -> None:
     source = (base / "valid_inputs.txt").read_text(encoding="utf-8")
 
     assert parser.parse(lexer.tokenize(source)).accepted
+
+
+def test_messiscript_real_subset_accepts_required_examples_in_all_methods() -> None:
+    base = Path("examples/messiscript")
+    yalex = (base / "messiscript.yalex").read_text(encoding="utf-8")
+    yapar = (base / "messiscript.yapar").read_text(encoding="utf-8")
+    examples = [
+        "la agarra messi.\nencara messi.\nla mueve messi por la derecha.\njuega messi.\n¡gol!.",
+        "la agarra messi.\nva messi pelota grande.\njuega messi.\n¡gol!.",
+        "la agarra messi.\nsigue messi.\njuega messi.\nvuelve messi.\n¡gol!.",
+    ]
+
+    for source in examples:
+        for method in ("LL(1)", "LR(0)", "SLR(1)", "LALR(1)"):
+            result = analyze_source(yalex, yapar, source, method)
+
+            assert result["accepted"], f"{method}: {source}"
+            assert result["errors"] == []
+            assert result["conflicts"] == []
+
+
+def test_messiscript_old_invented_demo_is_rejected() -> None:
+    base = Path("examples/messiscript")
+    result = analyze_source(
+        (base / "messiscript.yalex").read_text(encoding="utf-8"),
+        (base / "messiscript.yapar").read_text(encoding="utf-8"),
+        "arranca; gol messi;",
+        "SLR(1)",
+    )
+
+    assert not result["accepted"]
+    assert result["errors"]
 
 
 def test_cow_valid_and_invalid_inputs() -> None:
