@@ -37,6 +37,8 @@ donde estudiante compra libro
 
 ## Q'eqchi' simplificado
 
+Q'eqchi' es un idioma maya distinto de kakchiquel y quiche. Este ejemplo usa un vocabulario cerrado y frases controladas solo para demostrar analisis lexico, analisis sintactico y traduccion lexica palabra por palabra.
+
 Patrones:
 
 ```text
@@ -45,5 +47,25 @@ frase -> sujeto accion objeto
 ```
 
 El vocabulario q'eqchi' se mantiene deliberadamente pequeno y se documenta en `maya_qeqchi/lexicon.tsv`. Las entradas usan una forma practica para el lexer, aceptando apostrofo ASCII (`'`) y apostrofo tipografico (`’`) en las palabras que lo requieren.
+
+Para la demo principal en la IDE usa `maya_qeqchi/valid_inputs.txt`:
+
+```text
+b'ar laa'in xnawb'al aatinob'aal
+```
+
+Traduccion esperada:
+
+```text
+donde yo saber idioma
+```
+
+El archivo `maya_qeqchi/valid_queries.txt` contiene mas consultas validas, una por linea:
+
+- `b'ar laa'in xnawb'al aatinob'aal` -> `donde yo saber idioma`
+- `a'an yehok aatinob'aal` -> `el decir idioma`
+- `laa'in chalk ochoch` -> `yo venir casa`
+- `b'ar a'an b'ichank aatinob'aal` -> `donde el cantar idioma`
+- `laa'in xnawb'al xul` -> `yo saber animal`
 
 Fuente lexica de referencia: Q'eqchi' Talking Dictionary, K'ulb'il Yol Twitz Paxil / The Academy of Mayan Languages, Living Tongues Institute for Endangered Languages.

@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from dlp_parserstudio.lexer.yalex import LexicalError, LexerRule, Token, YALexLexer
+from dlp_parserstudio.ide.analysis import analyze_source
 from dlp_parserstudio.parser.ll1 import LL1Parser
 from dlp_parserstudio.parser.yapar_loader import load_yapar
 
@@ -40,6 +41,14 @@ QEQCHI_TRANSLATION = {
     "aatinob’aal": "idioma",
     "ochoch": "casa",
     "xul": "animal",
+}
+
+QEQCHI_EXPECTED_TRANSLATIONS = {
+    "b'ar laa'in xnawb'al aatinob'aal": "donde yo saber idioma",
+    "a'an yehok aatinob'aal": "el decir idioma",
+    "laa'in chalk ochoch": "yo venir casa",
+    "b'ar a'an b'ichank aatinob'aal": "donde el cantar idioma",
+    "laa'in xnawb'al xul": "yo saber animal",
 }
 
 
@@ -105,16 +114,33 @@ def test_qeqchi_valid_inputs_parse_and_translate() -> None:
     lexer = build_qeqchi_lexer()
     parser = LL1Parser(load_yapar(QEQCHI_DIR / "grammar.yapar"))
 
-    expected = {
-        "b'ar laa'in xnawb'al aatinob'aal": "donde yo saber idioma",
-    }
-
     for line in parse_lines(QEQCHI_DIR / "valid_inputs.txt"):
         tokens = lexer.tokenize(line)
         result = parser.parse(tokens)
 
         assert result.accepted
-        assert translate(tokens, QEQCHI_TRANSLATION) == expected[line]
+        assert translate(tokens, QEQCHI_TRANSLATION) == QEQCHI_EXPECTED_TRANSLATIONS[line]
+
+
+def test_qeqchi_valid_queries_are_accepted_by_all_parser_methods_and_translate() -> None:
+    lexer = build_qeqchi_lexer()
+    yalex_text = (QEQCHI_DIR / "lexer.yalex").read_text(encoding="utf-8")
+    yapar_text = (QEQCHI_DIR / "grammar.yapar").read_text(encoding="utf-8")
+
+    for line in parse_lines(QEQCHI_DIR / "valid_queries.txt"):
+        tokens = lexer.tokenize(line)
+
+        assert [token.type for token in tokens] in (
+            ["PREGUNTA", "SUJETO", "ACCION", "OBJETO"],
+            ["SUJETO", "ACCION", "OBJETO"],
+        )
+        assert translate(tokens, QEQCHI_TRANSLATION) == QEQCHI_EXPECTED_TRANSLATIONS[line]
+
+        for method in ("LL(1)", "LR(0)", "SLR(1)", "LALR(1)"):
+            result = analyze_source(yalex_text, yapar_text, line, method)
+
+            assert result["accepted"], f"{method}: {line}"
+            assert result["errors"] == []
 
 
 def test_qeqchi_invalid_inputs_are_rejected_or_fail_lexically() -> None:
@@ -136,6 +162,19 @@ def test_qeqchi_lexicon_documents_expected_entries() -> None:
     assert "Q'eqchi' Talking Dictionary" in lexicon
     assert "Laa'in" in lexicon
     assert "Aatinob'aal" in lexicon
+    for word in (
+        "b'ar",
+        "laa'in",
+        "a'an",
+        "xnawb'al",
+        "yehok",
+        "chalk",
+        "b'ichank",
+        "aatinob'aal",
+        "ochoch",
+        "xul",
+    ):
+        assert word in lexicon
 
 
 def test_natural_language_examples_are_grouped_in_named_folders() -> None:
@@ -144,6 +183,8 @@ def test_natural_language_examples_are_grouped_in_named_folders() -> None:
     for directory in (SPANISH_DIR, QEQCHI_DIR):
         for filename in expected_files:
             assert (directory / filename).exists()
+
+    assert (QEQCHI_DIR / "valid_queries.txt").exists()
 
 
 @pytest.mark.parametrize(
@@ -156,8 +197,6 @@ def test_natural_language_examples_are_grouped_in_named_folders() -> None:
 def test_descriptive_natural_language_full_valid_inputs_are_accepted(
     directory: Path,
 ) -> None:
-    from dlp_parserstudio.ide.analysis import analyze_source
-
     result = analyze_source(
         (directory / "lexer.yalex").read_text(encoding="utf-8"),
         (directory / "grammar.yapar").read_text(encoding="utf-8"),

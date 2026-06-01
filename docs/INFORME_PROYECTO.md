@@ -436,6 +436,7 @@ Archivos:
 - `lexer.yalex`
 - `grammar.yapar`
 - `valid_inputs.txt`
+- `valid_queries.txt`
 - `invalid_inputs.txt`
 - `lexicon.tsv`
 
@@ -493,8 +494,10 @@ Traducciones verificadas en tests:
 - `b'ar laa'in xnawb'al aatinob'aal` -> `donde yo saber idioma`
 - `a'an yehok aatinob'aal` -> `el decir idioma`
 - `laa'in chalk ochoch` -> `yo venir casa`
+- `b'ar a'an b'ichank aatinob'aal` -> `donde el cantar idioma`
+- `laa'in xnawb'al xul` -> `yo saber animal`
 
-La documentación existente en `docs/natural_language.md` aclara que es una gramática educativa simplificada, no un traductor completo ni una descripción lingüística completa. El vocabulario documenta como referencia el Q'eqchi' Talking Dictionary.
+`valid_inputs.txt` contiene una consulta principal para la demo de la IDE. `valid_queries.txt` contiene varias consultas validas, una por linea, para pruebas. La documentación existente en `docs/natural_language.md` aclara que es una gramática educativa simplificada, no un traductor completo ni una descripción lingüística completa. El vocabulario documenta como referencia el Q'eqchi' Talking Dictionary y Q'eqchi' se usa como idioma maya distinto de kakchiquel y quiché.
 
 ### 17.3 JSX/React educativo
 
