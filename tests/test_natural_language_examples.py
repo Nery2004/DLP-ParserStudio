@@ -8,6 +8,8 @@ from dlp_parserstudio.parser.yapar_loader import load_yapar
 
 
 NATURAL_LANGUAGE_DIR = Path("examples/natural_language")
+SPANISH_DIR = NATURAL_LANGUAGE_DIR / "espanol"
+QEQCHI_DIR = NATURAL_LANGUAGE_DIR / "maya_qeqchi"
 
 
 SPANISH_TRANSLATION = {
@@ -79,9 +81,9 @@ def translate(tokens: list[Token], table: dict[str, str]) -> str:
 
 def test_spanish_simple_valid_inputs_parse_and_translate() -> None:
     lexer = build_spanish_lexer()
-    parser = LL1Parser(load_yapar(NATURAL_LANGUAGE_DIR / "spanish_simple.yapar"))
+    parser = LL1Parser(load_yapar(SPANISH_DIR / "grammar.yapar"))
 
-    for line in parse_lines(NATURAL_LANGUAGE_DIR / "spanish_valid_inputs.txt"):
+    for line in parse_lines(SPANISH_DIR / "valid_inputs.txt"):
         tokens = lexer.tokenize(line)
         result = parser.parse(tokens)
 
@@ -91,9 +93,9 @@ def test_spanish_simple_valid_inputs_parse_and_translate() -> None:
 
 def test_spanish_simple_invalid_inputs_are_rejected() -> None:
     lexer = build_spanish_lexer()
-    parser = LL1Parser(load_yapar(NATURAL_LANGUAGE_DIR / "spanish_simple.yapar"))
+    parser = LL1Parser(load_yapar(SPANISH_DIR / "grammar.yapar"))
 
-    for line in parse_lines(NATURAL_LANGUAGE_DIR / "spanish_invalid_inputs.txt"):
+    for line in parse_lines(SPANISH_DIR / "invalid_inputs.txt"):
         result = parser.parse(lexer.tokenize(line))
 
         assert not result.accepted
@@ -101,15 +103,13 @@ def test_spanish_simple_invalid_inputs_are_rejected() -> None:
 
 def test_qeqchi_valid_inputs_parse_and_translate() -> None:
     lexer = build_qeqchi_lexer()
-    parser = LL1Parser(load_yapar(NATURAL_LANGUAGE_DIR / "qeqchi_simplified.yapar"))
+    parser = LL1Parser(load_yapar(QEQCHI_DIR / "grammar.yapar"))
 
     expected = {
         "b'ar laa'in xnawb'al aatinob'aal": "donde yo saber idioma",
-        "a'an yehok aatinob'aal": "el decir idioma",
-        "laa'in chalk ochoch": "yo venir casa",
     }
 
-    for line in parse_lines(NATURAL_LANGUAGE_DIR / "qeqchi_valid_inputs.txt"):
+    for line in parse_lines(QEQCHI_DIR / "valid_inputs.txt"):
         tokens = lexer.tokenize(line)
         result = parser.parse(tokens)
 
@@ -119,9 +119,9 @@ def test_qeqchi_valid_inputs_parse_and_translate() -> None:
 
 def test_qeqchi_invalid_inputs_are_rejected_or_fail_lexically() -> None:
     lexer = build_qeqchi_lexer()
-    parser = LL1Parser(load_yapar(NATURAL_LANGUAGE_DIR / "qeqchi_simplified.yapar"))
+    parser = LL1Parser(load_yapar(QEQCHI_DIR / "grammar.yapar"))
 
-    for line in parse_lines(NATURAL_LANGUAGE_DIR / "qeqchi_invalid_inputs.txt"):
+    for line in parse_lines(QEQCHI_DIR / "invalid_inputs.txt"):
         try:
             tokens = lexer.tokenize(line)
         except LexicalError:
@@ -131,57 +131,37 @@ def test_qeqchi_invalid_inputs_are_rejected_or_fail_lexically() -> None:
 
 
 def test_qeqchi_lexicon_documents_expected_entries() -> None:
-    lexicon = (NATURAL_LANGUAGE_DIR / "qeqchi_lexicon.tsv").read_text(encoding="utf-8")
+    lexicon = (QEQCHI_DIR / "lexicon.tsv").read_text(encoding="utf-8")
 
     assert "Q'eqchi' Talking Dictionary" in lexicon
     assert "Laa'in" in lexicon
     assert "Aatinob'aal" in lexicon
 
 
-def test_descriptive_natural_language_example_files_exist() -> None:
-    expected_files = [
-        "lenguaje_espanol.yalex",
-        "lenguaje_espanol.yapar",
-        "lenguaje_espanol_valid_inputs.txt",
-        "lenguaje_espanol_invalid_inputs.txt",
-        "lenguaje_espanol_lexicon.tsv",
-        "lenguaje_maya_qeqchi.yalex",
-        "lenguaje_maya_qeqchi.yapar",
-        "lenguaje_maya_qeqchi_valid_inputs.txt",
-        "lenguaje_maya_qeqchi_invalid_inputs.txt",
-        "lenguaje_maya_qeqchi_lexicon.tsv",
-    ]
+def test_natural_language_examples_are_grouped_in_named_folders() -> None:
+    expected_files = ["lexer.yalex", "grammar.yapar", "valid_inputs.txt", "invalid_inputs.txt", "lexicon.tsv"]
 
-    for filename in expected_files:
-        assert (NATURAL_LANGUAGE_DIR / filename).exists()
+    for directory in (SPANISH_DIR, QEQCHI_DIR):
+        for filename in expected_files:
+            assert (directory / filename).exists()
 
 
 @pytest.mark.parametrize(
-    ("yalex_file", "yapar_file", "input_file"),
+    "directory",
     [
-        (
-            "lenguaje_espanol.yalex",
-            "lenguaje_espanol.yapar",
-            "lenguaje_espanol_valid_inputs.txt",
-        ),
-        (
-            "lenguaje_maya_qeqchi.yalex",
-            "lenguaje_maya_qeqchi.yapar",
-            "lenguaje_maya_qeqchi_valid_inputs.txt",
-        ),
+        SPANISH_DIR,
+        QEQCHI_DIR,
     ],
 )
 def test_descriptive_natural_language_full_valid_inputs_are_accepted(
-    yalex_file: str,
-    yapar_file: str,
-    input_file: str,
+    directory: Path,
 ) -> None:
     from dlp_parserstudio.ide.analysis import analyze_source
 
     result = analyze_source(
-        (NATURAL_LANGUAGE_DIR / yalex_file).read_text(encoding="utf-8"),
-        (NATURAL_LANGUAGE_DIR / yapar_file).read_text(encoding="utf-8"),
-        (NATURAL_LANGUAGE_DIR / input_file).read_text(encoding="utf-8"),
+        (directory / "lexer.yalex").read_text(encoding="utf-8"),
+        (directory / "grammar.yapar").read_text(encoding="utf-8"),
+        (directory / "valid_inputs.txt").read_text(encoding="utf-8"),
         "SLR(1)",
     )
 

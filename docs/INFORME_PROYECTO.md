@@ -429,15 +429,15 @@ Archivos:
 
 ### 17.1 Español simple
 
-Ubicación: `examples/natural_language/`.
+Ubicación: `examples/natural_language/espanol/`.
 
 Archivos:
 
-- `spanish_simple.yalex`
-- `spanish_simple.yapar`
-- `spanish_valid_inputs.txt`
-- `spanish_invalid_inputs.txt`
-- `spanish_lexicon.tsv`
+- `lexer.yalex`
+- `grammar.yapar`
+- `valid_inputs.txt`
+- `invalid_inputs.txt`
+- `lexicon.tsv`
 
 Patrón:
 
@@ -462,15 +462,15 @@ La traducción usada en pruebas para español es identidad palabra por palabra.
 
 ### 17.2 Q'eqchi' simplificado
 
-Ubicación: `examples/natural_language/`.
+Ubicación: `examples/natural_language/maya_qeqchi/`.
 
 Archivos:
 
-- `qeqchi_simplified.yalex`
-- `qeqchi_simplified.yapar`
-- `qeqchi_valid_inputs.txt`
-- `qeqchi_invalid_inputs.txt`
-- `qeqchi_lexicon.tsv`
+- `lexer.yalex`
+- `grammar.yapar`
+- `valid_inputs.txt`
+- `invalid_inputs.txt`
+- `lexicon.tsv`
 
 Patrones:
 

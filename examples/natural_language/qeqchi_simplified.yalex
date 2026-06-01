@@ -1,8 +1,0 @@
-# Lexer educativo para frases q'eqchi' simplificadas.
-# Acepta apostrofo ASCII (') o apostrofo tipografico (’) en las palabras listadas.
-
-PREGUNTA  b['’]?ar
-SUJETO    laa['’]?in|a['’]?an
-ACCION    xnawb['’]?al|yehok|chalk|b['’]?ichank
-OBJETO    aatinob['’]?aal|ochoch|xul
-WS        [ \t\r\n]+  skip

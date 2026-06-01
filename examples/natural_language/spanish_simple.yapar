@@ -1,6 +1,0 @@
-%token PREGUNTA SUJETO ACCION OBJETO
-%ignore WS
-%start consulta
-
-%%
-consulta : PREGUNTA SUJETO ACCION OBJETO ;

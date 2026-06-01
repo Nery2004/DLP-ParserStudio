@@ -1,7 +1,0 @@
-%token PREGUNTA SUJETO ACCION OBJETO
-%ignore WS
-%start frase
-
-%%
-frase : PREGUNTA SUJETO ACCION OBJETO
-      | SUJETO ACCION OBJETO ;
