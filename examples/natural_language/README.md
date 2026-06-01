@@ -4,6 +4,15 @@ Estos ejemplos muestran como DLP-ParserStudio puede usar lexers y gramaticas peq
 
 Importante: son gramaticas educativas simplificadas. No modelan la sintaxis completa del espanol ni del q'eqchi', y la traduccion incluida es lexica, palabra por palabra.
 
+## Archivos recomendados para el IDE
+
+Para que sea mas facil ubicarlos en la demo, tambien existen copias con nombres descriptivos:
+
+- Espanol: `lenguaje_espanol.yalex`, `lenguaje_espanol.yapar`, `lenguaje_espanol_valid_inputs.txt`, `lenguaje_espanol_invalid_inputs.txt`, `lenguaje_espanol_lexicon.tsv`
+- Maya Q'eqchi': `lenguaje_maya_qeqchi.yalex`, `lenguaje_maya_qeqchi.yapar`, `lenguaje_maya_qeqchi_valid_inputs.txt`, `lenguaje_maya_qeqchi_invalid_inputs.txt`, `lenguaje_maya_qeqchi_lexicon.tsv`
+
+Los nombres anteriores se mantienen para no romper pruebas ni documentacion previa.
+
 ## Espanol simple
 
 Patron:

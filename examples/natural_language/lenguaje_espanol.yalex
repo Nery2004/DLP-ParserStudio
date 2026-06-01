@@ -1,0 +1,7 @@
+# Lexer educativo para consultas simples en espanol.
+
+PREGUNTA  donde|cuando
+SUJETO    estudiante|profesor
+ACCION    compra|lee
+OBJETO    libro|cuaderno
+WS        [ \t\r\n]+  skip

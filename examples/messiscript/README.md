@@ -11,6 +11,8 @@ MessiScript es un lenguaje de ejemplo inspirado en la idea de un `MessiScriptInt
 - `grita "texto";` imprime un mensaje
 - `fin;` termina el script
 
+`valid_inputs.txt` puede cargarse completo en el IDE; contiene un script valido de demostracion.
+
 ## Ejemplo
 
 ```messiscript

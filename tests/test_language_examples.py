@@ -102,6 +102,15 @@ def test_messiscript_valid_and_invalid_inputs() -> None:
     assert_invalid_inputs("examples/messiscript", lexer, "messiscript.yapar")
 
 
+def test_messiscript_full_valid_inputs_file_is_accepted() -> None:
+    base = Path("examples/messiscript")
+    lexer = build_messiscript_lexer()
+    parser = SLRParser(load_yapar(base / "messiscript.yapar"))
+    source = (base / "valid_inputs.txt").read_text(encoding="utf-8")
+
+    assert parser.parse(lexer.tokenize(source)).accepted
+
+
 def test_cow_valid_and_invalid_inputs() -> None:
     lexer = build_cow_lexer()
 

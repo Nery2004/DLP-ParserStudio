@@ -3,9 +3,9 @@
 %start script
 
 %%
-script : ARRANCA SEMI commands FIN SEMI ;
-commands : command commands
-         | epsilon ;
+script : ARRANCA SEMI body ;
+body : FIN SEMI
+     | command body ;
 command : goal
         | pass
         | mark

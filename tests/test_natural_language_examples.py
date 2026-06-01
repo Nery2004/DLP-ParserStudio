@@ -136,3 +136,54 @@ def test_qeqchi_lexicon_documents_expected_entries() -> None:
     assert "Q'eqchi' Talking Dictionary" in lexicon
     assert "Laa'in" in lexicon
     assert "Aatinob'aal" in lexicon
+
+
+def test_descriptive_natural_language_example_files_exist() -> None:
+    expected_files = [
+        "lenguaje_espanol.yalex",
+        "lenguaje_espanol.yapar",
+        "lenguaje_espanol_valid_inputs.txt",
+        "lenguaje_espanol_invalid_inputs.txt",
+        "lenguaje_espanol_lexicon.tsv",
+        "lenguaje_maya_qeqchi.yalex",
+        "lenguaje_maya_qeqchi.yapar",
+        "lenguaje_maya_qeqchi_valid_inputs.txt",
+        "lenguaje_maya_qeqchi_invalid_inputs.txt",
+        "lenguaje_maya_qeqchi_lexicon.tsv",
+    ]
+
+    for filename in expected_files:
+        assert (NATURAL_LANGUAGE_DIR / filename).exists()
+
+
+@pytest.mark.parametrize(
+    ("yalex_file", "yapar_file", "input_file"),
+    [
+        (
+            "lenguaje_espanol.yalex",
+            "lenguaje_espanol.yapar",
+            "lenguaje_espanol_valid_inputs.txt",
+        ),
+        (
+            "lenguaje_maya_qeqchi.yalex",
+            "lenguaje_maya_qeqchi.yapar",
+            "lenguaje_maya_qeqchi_valid_inputs.txt",
+        ),
+    ],
+)
+def test_descriptive_natural_language_full_valid_inputs_are_accepted(
+    yalex_file: str,
+    yapar_file: str,
+    input_file: str,
+) -> None:
+    from dlp_parserstudio.ide.analysis import analyze_source
+
+    result = analyze_source(
+        (NATURAL_LANGUAGE_DIR / yalex_file).read_text(encoding="utf-8"),
+        (NATURAL_LANGUAGE_DIR / yapar_file).read_text(encoding="utf-8"),
+        (NATURAL_LANGUAGE_DIR / input_file).read_text(encoding="utf-8"),
+        "SLR(1)",
+    )
+
+    assert result["accepted"]
+    assert result["errors"] == []
