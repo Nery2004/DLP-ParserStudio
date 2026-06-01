@@ -1,0 +1,7 @@
+%token ID PLUS
+%ignore WS
+%start E
+
+%%
+E : E PLUS E
+  | ID ;
