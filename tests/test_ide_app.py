@@ -109,17 +109,68 @@ def test_ide_lalr_includes_lr0_lr1_and_merged_lalr_automata() -> None:
 
 
 def test_ide_tables_explain_reduction_sources() -> None:
+    lr0 = analyze_source(YALEX, YAPAR, "12 + 7", "LR(0)")
     slr = analyze_source(YALEX, YAPAR, "12 + 7", "SLR(1)")
     lalr = analyze_source(YALEX, YAPAR, "12 + 7", "LALR(1)")
 
+    assert lr0["tables"]["reductions"]
     assert slr["tables"]["reductions"]
     assert lalr["tables"]["reductions"]
+    assert {entry["source"] for entry in lr0["tables"]["reductions"]} == {
+        "LR(0): todos los terminales"
+    }
     assert {entry["source"] for entry in slr["tables"]["reductions"]} == {
         "SLR(1): FOLLOW global del LHS"
     }
     assert {entry["source"] for entry in lalr["tables"]["reductions"]} == {
         "LALR(1): lookahead LR(1) fusionado"
     }
+
+
+def test_ide_lr0_uses_reductions_for_all_terminals() -> None:
+    result = analyze_source(YALEX, YAPAR, "12 + 7", "LR(0)")
+
+    reductions = [
+        entry
+        for entry in result["tables"]["reductions"]
+        if entry["production"] == "expr -> NUMBER PLUS NUMBER"
+    ]
+
+    assert result["accepted"]
+    assert {"$", "NUMBER", "PLUS"}.issubset({entry["lookahead"] for entry in reductions})
+    assert result["tables"]["meta"]["terminals"] == ["$", "NUMBER", "PLUS"]
+
+
+def test_ide_lr0_reports_conflict_cells_and_parallel_branches() -> None:
+    yalex = r"""
+ID id
+PLUS \+
+WS [ \t\r\n]+ skip
+"""
+    yapar = """
+%token ID PLUS
+%ignore WS
+%start E
+
+%%
+E : E PLUS E | ID ;
+"""
+
+    result = analyze_source(yalex, yapar, "id + id + id", "LR(0)")
+
+    assert any(conflict["kind"] == "shift/reduce" for conflict in result["conflicts"])
+    assert any("conflict" in entry["action"] for entry in result["tables"]["action"])
+    assert {branch["name"] for branch in result["parallel_branches"]} == {"shift", "reduce"}
+
+
+def test_ide_automaton_state_metadata_is_available() -> None:
+    result = analyze_source(YALEX, YAPAR, "12 + 7", "LR(0)")
+
+    states = result["lr0_automaton"]["states"]
+
+    assert states[0]["is_initial"]
+    assert any(state["has_reduction"] for state in states)
+    assert any(state["is_accepting"] for state in states)
 
 
 def test_yalex_text_loader_supports_skip_rules() -> None:
@@ -147,9 +198,10 @@ def test_ide_html_exposes_only_required_parser_methods() -> None:
     html = Path("src/dlp_parserstudio/ide/static/index.html").read_text(encoding="utf-8")
 
     assert "<option>LL(1)</option>" in html
+    assert "<option>LR(0)</option>" in html
     assert "<option selected>SLR(1)</option>" in html
     assert "<option>LALR(1)</option>" in html
-    assert "<option>LR(0)</option>" not in html
+    assert 'id="automaton-title"' in html
     assert 'id="lexicon-text"' in html
 
 
@@ -164,3 +216,7 @@ def test_ide_frontend_classifies_error_types() -> None:
     assert ".error-summary" in styles
     assert ".error-badge" in styles
     assert ".errors-empty-success" in styles
+    assert "function getResultStatus" in app_js
+    assert "function getAutomatonTitle" in app_js
+    assert ".cell-conflict" in styles
+    assert ".state-tag" in styles

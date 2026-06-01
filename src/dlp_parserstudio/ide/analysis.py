@@ -516,11 +516,16 @@ def _symbol_set_to_names(values: Iterable[Symbol]) -> list[str]:
 
 def _lr0_automaton_to_dict(automaton: LR0Automaton) -> dict[str, Any]:
     states = []
+    augmented_start = automaton.grammar.start_symbol
     for index, state in enumerate(automaton.states):
+        complete_items = [item for item in state.items if item.is_complete]
         states.append(
             {
                 "id": index,
                 "items": sorted(str(item) for item in state.items),
+                "is_initial": index == 0,
+                "has_reduction": any(item.production.lhs != augmented_start for item in complete_items),
+                "is_accepting": any(item.production.lhs == augmented_start for item in complete_items),
             }
         )
 
@@ -542,7 +547,9 @@ def _lr0_automaton_to_dict(automaton: LR0Automaton) -> dict[str, Any]:
 
 def _lr1_automaton_to_dict(automaton: Any, kind: str) -> dict[str, Any]:
     states = []
+    augmented_start = automaton.grammar.start_symbol
     for index, state in enumerate(automaton.states):
+        complete_items = [item for item in state.items if item.is_complete]
         states.append(
             {
                 "id": index,
@@ -551,6 +558,9 @@ def _lr1_automaton_to_dict(automaton: Any, kind: str) -> dict[str, Any]:
                     f"{production.lhs.name} -> {' '.join(symbol.name for symbol in production.rhs) or 'epsilon'} @ {dot}"
                     for production, dot in state.core
                 ),
+                "is_initial": index == 0,
+                "has_reduction": any(item.production.lhs != augmented_start for item in complete_items),
+                "is_accepting": any(item.production.lhs == augmented_start for item in complete_items),
             }
         )
 
@@ -612,9 +622,20 @@ def _ll1_table_to_dict(entries: Mapping[tuple[NonTerminal, Terminal], Production
     ]
 
 
-def _action_goto_tables_to_dict(table: Any) -> dict[str, list[dict[str, Any]]]:
+def _action_goto_tables_to_dict(table: Any) -> dict[str, Any]:
+    conflicts_by_cell: dict[tuple[int, Terminal], list[Any]] = {}
+    for conflict in getattr(table, "conflicts", ()):
+        conflicts_by_cell.setdefault((conflict.state, conflict.lookahead), []).append(conflict)
+
     action = [
-        {"state": state, "lookahead": terminal.name, "action": _action_to_string(action)}
+        {
+            "state": state,
+            "lookahead": terminal.name,
+            "action": _action_cell_to_string(
+                action,
+                conflicts_by_cell.get((state, terminal), []),
+            ),
+        }
         for (state, terminal), action in sorted(
             table.action.items(),
             key=lambda item: (item[0][0], item[0][1].name),
@@ -627,7 +648,55 @@ def _action_goto_tables_to_dict(table: Any) -> dict[str, list[dict[str, Any]]]:
             key=lambda item: (item[0][0], item[0][1].name),
         )
     ]
-    return {"action": action, "goto": goto}
+    return {"action": action, "goto": goto, "meta": _table_meta_to_dict(table)}
+
+
+def _action_cell_to_string(action: Any, conflicts: list[Any]) -> str:
+    labels = [_action_to_string(action)]
+    for conflict in conflicts:
+        for candidate in (conflict.existing, conflict.incoming):
+            label = _action_to_string(candidate)
+            if label not in labels:
+                labels.append(label)
+
+    text = " / ".join(labels)
+    if conflicts:
+        kinds = sorted({conflict.kind for conflict in conflicts})
+        text = f"{text} ({' + '.join(kinds)} conflict)"
+    return text
+
+
+def _table_meta_to_dict(table: Any) -> dict[str, Any]:
+    automaton = getattr(table, "automaton", None)
+    state_count = len(automaton.states) if automaton is not None else 0
+    terminals = {
+        terminal.name
+        for _state, terminal in table.action.keys()
+    }
+    non_terminals = {
+        non_terminal.name
+        for _state, non_terminal in table.goto.keys()
+    }
+
+    grammar = getattr(automaton, "grammar", None)
+    if grammar is not None:
+        terminals.update(terminal.name for terminal in grammar.terminals)
+        terminals.add(EOF.name)
+        non_terminals.update(
+            non_terminal.name
+            for non_terminal in grammar.non_terminals
+            if non_terminal != grammar.start_symbol
+        )
+
+    return {
+        "state_count": state_count,
+        "states": list(range(state_count)),
+        "terminals": sorted(terminals),
+        "non_terminals": sorted(non_terminals),
+        "action_count": len(table.action),
+        "goto_count": len(table.goto),
+        "conflict_count": len(getattr(table, "conflicts", ())),
+    }
 
 
 def _reduction_table_to_dict(table: Any, source: str) -> list[dict[str, Any]]:
@@ -672,6 +741,7 @@ def _ll1_conflict_to_dict(conflict: Any) -> dict[str, str]:
         "lookahead": conflict.lookahead.name,
         "existing": _format_production(conflict.existing),
         "incoming": _format_production(conflict.incoming),
+        "explanation": "La celda LL(1) tiene mas de una produccion posible.",
     }
 
 
@@ -682,7 +752,22 @@ def _lr_conflict_to_dict(conflict: Any) -> dict[str, Any]:
         "lookahead": conflict.lookahead.name,
         "existing": _action_to_string(conflict.existing),
         "incoming": _action_to_string(conflict.incoming),
+        "explanation": _conflict_explanation(conflict),
     }
+
+
+def _conflict_explanation(conflict: Any) -> str:
+    if conflict.kind == "shift/reduce":
+        return (
+            f"En ACTION[{conflict.state}, {conflict.lookahead.name}] "
+            "la tabla puede desplazar o reducir."
+        )
+    if conflict.kind == "reduce/reduce":
+        return (
+            f"En ACTION[{conflict.state}, {conflict.lookahead.name}] "
+            "hay mas de una reduccion posible."
+        )
+    return f"Conflicto en ACTION[{conflict.state}, {conflict.lookahead.name}]."
 
 
 def _structured_errors_to_dict(errors: Iterable[Any], source: str) -> list[dict[str, Any]]:

@@ -73,15 +73,12 @@ async function runAnalysis() {
 
 async function render(result) {
   const accepted = $("accepted-label");
-  accepted.className = result.errors.length ? "warn" : result.accepted ? "ok" : "fail";
-  accepted.textContent = result.errors.length
-    ? "Con errores"
-    : result.accepted
-      ? "Aceptado"
-      : "Rechazado";
+  const status = getResultStatus(result);
+  accepted.className = status.className;
+  accepted.textContent = status.label;
 
   const detected = result.format_detected ? `Formato: ${result.format_detected.toUpperCase()}` : "Formato: YAPar";
-  $("summary-label").textContent = `${result.method} · ${detected} · ${result.tokens.length} tokens · ${result.steps.length} pasos`;
+  $("summary-label").textContent = `${result.method} · ${detected} · ${result.tokens.length} tokens · ${result.steps.length} pasos · ${status.message}`;
 
   renderHTMLOrEmpty("tokens-output", renderTokensTable(result.tokens));
   renderHTMLOrEmpty("first-follow-output", renderFirstFollowTable(result.first, result.follow));
@@ -136,6 +133,10 @@ function renderFirstFollowTable(first, follow) {
 function renderActionGotoTables(tables) {
   if (!tables || (!tables.action && !tables.goto && !tables.ll1 && !tables.reductions)) return null;
   let html = "";
+
+  if (tables.meta) {
+    html += renderTableMeta(tables.meta);
+  }
 
   if (tables.action && tables.action.length > 0) {
     html += renderMatrixTable(
@@ -200,6 +201,19 @@ function renderMatrixTable(title, entries, rowKey, columnKey, valueKey, classFor
   return html;
 }
 
+function renderTableMeta(meta) {
+  const states = Array.isArray(meta.states) ? meta.states.length : meta.state_count || 0;
+  const terminals = Array.isArray(meta.terminals) ? meta.terminals.join(", ") : "";
+  const nonTerminals = Array.isArray(meta.non_terminals) ? meta.non_terminals.join(", ") : "";
+  let html = `<div class="table-meta">`;
+  html += `<span><strong>${states}</strong> estados</span>`;
+  html += `<span>Terminales: ${escapeHtml(terminals || "-")}</span>`;
+  html += `<span>No terminales: ${escapeHtml(nonTerminals || "-")}</span>`;
+  html += `<span>Conflictos: <strong>${meta.conflict_count || 0}</strong></span>`;
+  html += `</div>`;
+  return html;
+}
+
 function renderStepsTable(steps) {
   if (!steps || steps.length === 0) return null;
   let html = `<table class="parse-table"><thead><tr>`;
@@ -225,7 +239,7 @@ function renderStepsTable(steps) {
 function renderConflictsTable(conflicts) {
   if (!conflicts || conflicts.length === 0) return null;
   let html = `<table class="parse-table"><thead><tr>`;
-  html += `<th>#</th><th>Tipo</th><th>Estado</th><th>Lookahead</th><th>Existente</th><th>Entrante</th>`;
+  html += `<th>#</th><th>Tipo</th><th>Estado</th><th>Lookahead</th><th>Existente</th><th>Entrante</th><th>Explicacion</th>`;
   html += `</tr></thead><tbody>`;
   for (let i = 0; i < conflicts.length; i++) {
     const conflict = conflicts[i];
@@ -236,6 +250,7 @@ function renderConflictsTable(conflicts) {
     html += `<td>${escapeHtml(conflict.lookahead || conflict.non_terminal || "-")}</td>`;
     html += `<td>${escapeHtml(conflict.existing || "-")}</td>`;
     html += `<td>${escapeHtml(conflict.incoming || "-")}</td>`;
+    html += `<td>${escapeHtml(conflict.explanation || describeConflict(conflict))}</td>`;
     html += `</tr>`;
   }
   html += `</tbody></table>`;
@@ -382,12 +397,20 @@ function renderBranches(branches) {
   for (const branch of branches) {
     const isAccepted = branch.result === "accepted";
     const statusClass = isAccepted ? "branch-ok" : "branch-fail";
-    const statusLabel = isAccepted ? "EXITO" : "FALLO";
+    const statusLabel = isAccepted
+      ? "ACEPTA"
+      : branch.result === "rejected"
+        ? "RECHAZA"
+        : "ERROR";
     html += `<div class="branch ${statusClass}">`;
     html += `<div class="branch-header">`;
     html += `<strong>Rama: ${escapeHtml(String(branch.name || "").toUpperCase())}</strong>`;
     html += `<span class="branch-action">Accion elegida: ${escapeHtml(branch.chosen_action || "-")}</span>`;
     html += `<span class="branch-result">${statusLabel}</span>`;
+    html += `</div>`;
+    html += `<div class="branch-meta">`;
+    html += `<span>Pila final: <code>${escapeHtml(formatList(branch.stack))}</code></span>`;
+    html += `<span>Entrada restante: <code>${escapeHtml(formatList(branch.remaining_input))}</code></span>`;
     html += `</div>`;
     html += renderStepsTable(branch.steps) || "";
     if (branch.error) {
@@ -423,14 +446,20 @@ function renderTranslation(translation) {
 }
 
 async function renderAutomatonPanel() {
+  const title = $("automaton-title");
   const graph = $("automaton-graph");
   const output = $("automaton-output");
   const automata = collectAutomata();
+  if (title) title.textContent = getAutomatonTitle();
 
   if (automata.length === 0) {
     graph.hidden = true;
     output.hidden = false;
-    setTextOutput("automaton-output", null);
+    if (state.lastResult && String(state.lastResult.method || "").toLowerCase().includes("ll")) {
+      setTextOutput("automaton-output", "LL(1) no usa automata LR.");
+    } else {
+      setTextOutput("automaton-output", null);
+    }
     return;
   }
 
@@ -458,10 +487,23 @@ async function renderAutomatonPanel() {
 function collectAutomata() {
   const result = state.lastResult;
   if (!result) return [];
+  const method = String(result.method || "").toLowerCase();
+  if (method.includes("ll")) return [];
+
   const automata = [];
-  if (result.lr0_automaton) automata.push({ label: "LR(0) base", automaton: result.lr0_automaton });
-  if (result.lr1_automaton) automata.push({ label: "LR(1) canonico", automaton: result.lr1_automaton });
-  if (result.lalr_automaton) automata.push({ label: "LALR(1) fusionado", automaton: result.lalr_automaton });
+  if (method.includes("lr(0)") || method === "lr0") {
+    if (result.lr0_automaton) automata.push({ label: "Automata LR(0)", automaton: result.lr0_automaton });
+    return automata;
+  }
+  if (method.includes("slr")) {
+    if (result.lr0_automaton) automata.push({ label: "Automata LR(0) usado por SLR(1)", automaton: result.lr0_automaton });
+    return automata;
+  }
+  if (method.includes("lalr")) {
+    if (result.lr0_automaton) automata.push({ label: "Automata LR(0) base para comparar", automaton: result.lr0_automaton });
+    if (result.lr1_automaton) automata.push({ label: "Automata LR(1) canonico", automaton: result.lr1_automaton });
+    if (result.lalr_automaton) automata.push({ label: "Automata LALR(1) fusionado", automaton: result.lalr_automaton });
+  }
   return automata;
 }
 
@@ -469,10 +511,11 @@ function renderAutomatonStates(automata) {
   let html = "";
   for (const item of automata) {
     html += `<h3>${escapeHtml(item.label)}</h3>`;
-    html += `<table class="parse-table"><thead><tr><th>Estado</th><th>Items</th></tr></thead><tbody>`;
+    html += `<table class="parse-table"><thead><tr><th>Estado</th><th>Rol</th><th>Items</th></tr></thead><tbody>`;
     for (const stateItem of item.automaton.states || []) {
       html += `<tr>`;
       html += `<td><strong>I${stateItem.id}</strong></td>`;
+      html += `<td>${automatonStateTags(stateItem)}</td>`;
       html += `<td>${(stateItem.items || []).map((value) => `<code>${escapeHtml(value)}</code>`).join("<br>")}</td>`;
       html += `</tr>`;
     }
@@ -489,7 +532,7 @@ async function renderTree() {
   if (!tree) {
     graph.hidden = true;
     output.hidden = false;
-    setTextOutput("tree-output", null);
+    setTextOutput("tree-output", getTreeEmptyMessage());
     return;
   }
 
@@ -582,10 +625,86 @@ function isEmpty(value) {
 }
 
 function actionCellClass(value) {
+  if (value.includes("conflict")) return "cell-conflict";
   if (value.startsWith("shift")) return "cell-shift";
   if (value.startsWith("reduce")) return "cell-reduce";
   if (value === "accept") return "cell-accept";
   return "";
+}
+
+function getResultStatus(result) {
+  const errors = normalizeErrors(result.errors || []);
+  const types = new Set(errors.map((error) => error.normalizedType));
+
+  if (types.has("Lexer Error")) {
+    return { label: "Error lexico", className: "fail", message: "El lexer no pudo reconocer parte del input." };
+  }
+  if (types.has("Grammar Error")) {
+    return { label: "Error gramatical", className: "warn", message: "Revise la definicion de la gramatica." };
+  }
+  if (types.has("Syntax Error")) {
+    return { label: "Error sintactico", className: "fail", message: "La entrada no coincide con la gramatica." };
+  }
+  if (types.has("Semantic Error")) {
+    return { label: "Error semantico", className: "warn", message: "Hay inconsistencias semanticas reportadas." };
+  }
+  if (types.has("Parser Error") || types.has("Internal Error")) {
+    return { label: "Error interno", className: "fail", message: "El parser reporto un problema interno." };
+  }
+  if (result.conflicts && result.conflicts.length > 0) {
+    return { label: "Error gramatical", className: "warn", message: "La tabla contiene conflictos de analisis." };
+  }
+  if (result.accepted) {
+    return { label: "Aceptado", className: "ok", message: "Analisis completado correctamente." };
+  }
+  return { label: "Rechazado", className: "fail", message: "El parser rechazo la entrada." };
+}
+
+function getAutomatonTitle() {
+  const method = String((state.lastResult && state.lastResult.method) || "").toLowerCase();
+  if (method.includes("ll")) return "LL(1) no usa automata LR";
+  if (method.includes("lr(0)") || method === "lr0") return "Automata LR(0)";
+  if (method.includes("slr")) return "Automata LR(0) usado por SLR(1)";
+  if (method.includes("lalr")) return "Automata LALR(1)";
+  return "Automata LR";
+}
+
+function getTreeEmptyMessage() {
+  if (!state.lastResult) return "No hay arbol sintactico porque el analisis no fue aceptado.";
+  if (state.lastResult.accepted) return "El analisis fue aceptado, pero no se genero arbol sintactico.";
+  return "No hay arbol sintactico porque el analisis no fue aceptado.";
+}
+
+function automatonStateTags(stateItem) {
+  const tags = [];
+  if (stateItem.is_initial) tags.push("Inicial");
+  if (stateItem.has_reduction) tags.push("Reduce");
+  if (stateItem.is_accepting) tags.push("Accept");
+  if (tags.length === 0) return `<span class="state-tag state-tag-neutral">-</span>`;
+  return tags
+    .map((tag) => `<span class="state-tag state-tag-${tag.toLowerCase()}">${escapeHtml(tag)}</span>`)
+    .join(" ");
+}
+
+function describeConflict(conflict) {
+  const kind = conflict.kind || "conflict";
+  const state = conflict.state !== undefined ? conflict.state : "-";
+  const lookahead = conflict.lookahead || conflict.non_terminal || "-";
+  if (kind === "shift/reduce") {
+    return `En el estado ${state}, con ${lookahead}, la tabla puede desplazar o reducir.`;
+  }
+  if (kind === "reduce/reduce") {
+    return `En el estado ${state}, con ${lookahead}, hay mas de una reduccion posible.`;
+  }
+  if (kind === "ll1") {
+    return `La celda LL(1) tiene mas de una produccion posible.`;
+  }
+  return `Conflicto en el estado ${state} con ${lookahead}.`;
+}
+
+function formatList(values) {
+  if (!Array.isArray(values)) return String(values || "-");
+  return values.length ? values.join(" ") : "-";
 }
 
 function sortMixed(a, b) {

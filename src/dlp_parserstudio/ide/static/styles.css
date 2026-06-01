@@ -572,6 +572,13 @@ pre:not(.empty-output) {
   font-weight: 800;
 }
 
+.cell-conflict {
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: #fde68a;
+  font-weight: 850;
+  box-shadow: inset 3px 0 0 rgba(245, 158, 11, 0.72);
+}
+
 .row-accept,
 .row-accept td {
   background: var(--ok-soft) !important;
@@ -738,6 +745,46 @@ pre:not(.empty-output) {
   fill: var(--accent);
 }
 
+.table-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.table-meta span,
+.state-tag {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.09);
+  color: #cbd5e1;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.state-tag-inicial {
+  border-color: rgba(56, 189, 248, 0.44);
+  background: rgba(56, 189, 248, 0.13);
+  color: #bae6fd;
+}
+
+.state-tag-reduce {
+  border-color: rgba(168, 85, 247, 0.46);
+  background: rgba(168, 85, 247, 0.14);
+  color: #e9d5ff;
+}
+
+.state-tag-accept {
+  border-color: rgba(34, 197, 94, 0.46);
+  background: rgba(34, 197, 94, 0.14);
+  color: #bbf7d0;
+}
+
 .branch {
   margin-bottom: 12px;
   overflow: hidden;
@@ -761,6 +808,24 @@ pre:not(.empty-output) {
 
 .branch-action {
   color: var(--muted);
+}
+
+.branch-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--muted-strong);
+  font-size: 11px;
+}
+
+.branch-meta code {
+  border-radius: 5px;
+  background: rgba(56, 189, 248, 0.1);
+  color: #bae6fd;
+  padding: 1px 6px;
 }
 
 .branch-result {

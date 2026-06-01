@@ -20,6 +20,7 @@
           <span>Metodo</span>
           <select id="method">
             <option>LL(1)</option>
+            <option>LR(0)</option>
             <option selected>SLR(1)</option>
             <option>LALR(1)</option>
           </select>
@@ -102,7 +103,7 @@
           <div id="first-follow-output" class="table-container" data-empty="Sin conjuntos calculados."></div>
         </article>
         <article class="result-card automaton-card">
-          <h2>Automatas LR</h2>
+          <h2 id="automaton-title">Automata LR</h2>
           <div class="tabs">
             <button class="tab active" data-automaton-view="graph" type="button">Grafo</button>
             <button class="tab" data-automaton-view="dot" type="button">DOT</button>
@@ -125,7 +126,7 @@
         </article>
         <article class="result-card">
           <h2>Ramas paralelas</h2>
-          <div id="branches-output" class="branches-container" data-empty="Sin ramas para explorar."></div>
+          <div id="branches-output" class="branches-container" data-empty="Sin ramas paralelas para explorar."></div>
         </article>
         <article class="result-card translation-card">
           <h2>Traduccion</h2>
@@ -139,8 +140,8 @@
             <button class="tab" data-tree-view="dot" type="button">DOT</button>
             <button class="tab" data-tree-view="text" type="button">Texto</button>
           </div>
-          <div id="tree-graph" class="graph-container" data-empty="Sin arbol sintactico."></div>
-          <pre id="tree-output" data-empty="Sin arbol sintactico." hidden></pre>
+          <div id="tree-graph" class="graph-container" data-empty="No hay arbol sintactico porque el analisis no fue aceptado."></div>
+          <pre id="tree-output" data-empty="No hay arbol sintactico porque el analisis no fue aceptado." hidden></pre>
         </article>
         <article class="result-card errors-panel">
           <h2>Errores</h2>
