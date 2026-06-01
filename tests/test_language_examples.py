@@ -69,14 +69,23 @@ def assert_valid_inputs(directory: str, lexer: YALexLexer, grammar_file: str) ->
 def assert_invalid_inputs(directory: str, lexer: YALexLexer, grammar_file: str) -> None:
     base = Path(directory)
     parser = SLRParser(load_yapar(base / grammar_file))
+    lexical_rejections = 0
+    syntax_rejections = 0
 
     for source in lines(base / "invalid_inputs.txt"):
         try:
             tokens = lexer.tokenize(source)
-        except LexicalError:
+        except LexicalError as error:
+            lexical_rejections += 1
+            assert error.character
+            assert error.line >= 1
+            assert error.column >= 1
             continue
 
+        syntax_rejections += 1
         assert not parser.parse(tokens).accepted, source
+
+    assert lexical_rejections + syntax_rejections > 0
 
 
 def test_futlang_valid_and_invalid_inputs() -> None:
@@ -142,3 +151,46 @@ def test_cow_valid_and_invalid_inputs() -> None:
 
     assert_valid_inputs("examples/cow", lexer, "cow.yapar")
     assert_invalid_inputs("examples/cow", lexer, "cow.yapar")
+
+
+def test_cow_valid_input_is_accepted() -> None:
+    lexer = build_cow_lexer()
+    parser = SLRParser(load_yapar("examples/cow/cow.yapar"))
+
+    assert parser.parse(lexer.tokenize("moo mOo moO MOO")).accepted
+
+
+def test_cow_invalid_lexical_input_is_explicitly_rejected() -> None:
+    lexer = build_cow_lexer()
+
+    try:
+        lexer.tokenize("moo cow")
+    except LexicalError as error:
+        assert error.character == "c"
+        assert error.line == 1
+        assert error.column == 5
+    else:
+        raise AssertionError("Expected COW lexical rejection for token outside the vocabulary.")
+
+
+def test_cow_empty_input_is_syntactically_rejected() -> None:
+    parser = SLRParser(load_yapar("examples/cow/cow.yapar"))
+
+    result = parser.parse([])
+
+    assert not result.accepted
+    assert result.error is not None
+    assert result.error.token == "$"
+
+
+def test_basic_math_examples_accept_required_inputs_in_all_methods() -> None:
+    yalex = Path("examples/basic_math.yalex").read_text(encoding="utf-8")
+    yapar = Path("examples/basic_expr.yapar").read_text(encoding="utf-8")
+    inputs = ["12 + 7", "12 * 7", "12 + 7 * 3", "(12 + 7) * 3"]
+
+    for source in inputs:
+        for method in ("LL(1)", "LR(0)", "SLR(1)", "LALR(1)"):
+            result = analyze_source(yalex, yapar, source, method)
+
+            assert result["accepted"], f"{method}: {source}"
+            assert result["errors"] == []

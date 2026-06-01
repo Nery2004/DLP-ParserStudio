@@ -6,14 +6,16 @@ from dlp_parserstudio.core.grammar import NonTerminal, Production, Terminal
 from dlp_parserstudio.parser.yapar_loader import YaparLoaderError, load_yapar, loads_yapar
 
 
-SAMPLE_YAPAR = """%token ID NUMBER PLUS TIMES LPAREN RPAREN
+SAMPLE_YAPAR = """%token NUMBER PLUS TIMES LPAREN RPAREN
 %ignore WS
 %start expr
 
 %%
 expr : term exprp ;
 exprp : PLUS term exprp | epsilon ;
-term : NUMBER | ID | LPAREN expr RPAREN ;
+term : factor termp ;
+termp : TIMES factor termp | epsilon ;
+factor : NUMBER | LPAREN expr RPAREN ;
 """
 
 
@@ -24,10 +26,11 @@ def test_loads_yapar_to_grammar() -> None:
     assert grammar.es_no_terminal("expr")
     assert grammar.es_no_terminal("exprp")
     assert grammar.es_no_terminal("term")
-    assert grammar.es_terminal("ID")
+    assert grammar.es_no_terminal("termp")
+    assert grammar.es_no_terminal("factor")
     assert grammar.es_terminal("NUMBER")
     assert not grammar.es_terminal("WS")
-    assert len(grammar.productions) == 6
+    assert len(grammar.productions) == 8
 
 
 def test_loads_yapar_supports_epsilon_productions() -> None:
@@ -42,8 +45,12 @@ def test_load_yapar_from_example_file() -> None:
     assert grammar.start_symbol == NonTerminal("expr")
     assert Production(
         NonTerminal("term"),
-        (Terminal("LPAREN"), NonTerminal("expr"), Terminal("RPAREN")),
+        (NonTerminal("factor"), NonTerminal("termp")),
     ) in grammar.producciones_de("term")
+    assert Production(
+        NonTerminal("factor"),
+        (Terminal("LPAREN"), NonTerminal("expr"), Terminal("RPAREN")),
+    ) in grammar.producciones_de("factor")
 
 
 def test_missing_separator_reports_location() -> None:

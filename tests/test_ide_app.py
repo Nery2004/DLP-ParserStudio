@@ -90,6 +90,25 @@ def test_ide_analysis_reports_multiple_lexical_errors() -> None:
     assert [error["column"] for error in lexical_errors] == [4, 8]
 
 
+def test_ide_analysis_rejects_overall_result_when_recovered_lexer_errors_exist() -> None:
+    base = Path("examples/cow")
+    result = analyze_source(
+        (base / "cow.yalex").read_text(encoding="utf-8"),
+        (base / "cow.yapar").read_text(encoding="utf-8"),
+        "moo cow",
+        "SLR(1)",
+    )
+
+    lexical_errors = [error for error in result["errors"] if error["source"] == "lexer"]
+
+    assert not result["accepted"]
+    assert result["syntax_tree"] is None
+    assert [token["type"] for token in result["tokens"]] == ["MOO_LOWER"]
+    assert [error["token"] for error in lexical_errors] == ["c", "o", "w"]
+    assert [error["line"] for error in lexical_errors] == [1, 1, 1]
+    assert [error["column"] for error in lexical_errors] == [5, 6, 7]
+
+
 def test_ide_analysis_reports_multiple_parser_errors_when_recoverable() -> None:
     result = analyze_source(YALEX, YAPAR, "12 7 8", "SLR(1)")
 

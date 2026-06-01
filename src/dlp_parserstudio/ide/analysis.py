@@ -168,7 +168,15 @@ def analyze_source(
     except Exception as error:
         errors.append(_error("parser", str(error), 1, 1))
 
+    if _has_lexical_errors(errors):
+        result["accepted"] = False
+        result["syntax_tree"] = None
+
     return result
+
+
+def _has_lexical_errors(errors: Iterable[dict[str, Any]]) -> bool:
+    return any(error.get("source") == "lexer" for error in errors)
 
 
 def _detect_grammar_format(text: str) -> str:
