@@ -50,12 +50,12 @@ dlp version
 dlp ide
 ```
 
-El IDE web queda disponible por defecto en `http://127.0.0.1:8000`.
+El IDE web queda disponible por defecto en `http://127.0.0.1:8001`.
 
 También puedes elegir host, puerto y recarga automática:
 
 ```bash
-dlp ide --host 127.0.0.1 --port 8000 --reload
+dlp ide --host 127.0.0.1 --port 8001 --reload
 ```
 
 ## Ejemplo de conflicto shift/reduce
@@ -69,6 +69,28 @@ Para demostrar conflictos y ramas paralelas en la IDE:
 5. Selecciona `LR(0)` y presiona `Ejecutar`.
 
 La gramática `E : E PLUS E | ID ;` es ambigua para expresiones con `+`. En la sección `Conflictos` debe aparecer un conflicto `shift/reduce`, con el estado, el símbolo `PLUS` y las acciones en conflicto. En `Ramas paralelas` deben aparecer dos caminos exploratorios: una rama que elige `shift` y otra que elige `reduce`, junto con sus pilas, entrada restante y resultado.
+
+## Resolución automática de ambigüedad
+
+La IDE incluye `Sugerir` y `Resolver automáticamente`.
+
+`Resolver automáticamente` aplica una reescritura segura cuando reconoce un patrón educativo conocido. Por ejemplo, para:
+
+```yapar
+expr : expr PLUS expr
+     | expr TIMES expr
+     | NUMBER ;
+```
+
+la IDE genera y aplica una gramática no ambigua con niveles `expr`, `term` y `factor`, para separar precedencia de suma y multiplicación. Después vuelve a ejecutar el análisis.
+
+Ejemplo listo para importar:
+
+- `examples/ambiguity_expression/ambiguous_expression.yalex`
+- `examples/ambiguity_expression/ambiguous_expression.yapar`
+- `examples/ambiguity_expression/ambiguous_expression_input.txt`
+
+Limitación: la ambigüedad general de gramáticas libres de contexto no se puede resolver completamente para todos los casos. Este modo cubre patrones del proyecto: expresiones aritméticas ambiguas, factorización izquierda directa/indirecta y explicación de conflictos `shift/reduce`.
 
 ## Tests
 

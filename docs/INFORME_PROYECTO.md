@@ -421,6 +421,7 @@ El IDE permite:
 - ver pasos,
 - ver conflictos,
 - ver ramas paralelas,
+- sugerir y aplicar resoluciones automaticas para patrones conocidos de ambiguedad,
 - ver árbol sintáctico en JSON/DOT/texto,
 - ver errores con línea y columna.
 
@@ -428,7 +429,10 @@ Archivos:
 
 - Backend: `src/dlp_parserstudio/ide/app.py`
 - Análisis: `src/dlp_parserstudio/ide/analysis.py`
+- Desambiguacion: `src/dlp_parserstudio/parser/disambiguation.py`
 - Frontend: `src/dlp_parserstudio/ide/static/`
+
+La ruta `/api/disambiguate/resolve` aplica reescrituras automaticas cuando el patron es reconocido con seguridad. El caso principal es la ambiguedad de expresiones `E -> E op E`, que se reescribe a niveles `expr`, `term` y `factor`. Tambien se documentan factorizaciones izquierda directas o indirectas. No pretende resolver la ambiguedad general de cualquier gramatica libre de contexto, porque ese problema no es decidible en general.
 
 ## 17. Gramáticas de ejemplo
 
@@ -657,13 +661,13 @@ dlp ide
 Con host, puerto y recarga automática:
 
 ```bash
-dlp ide --host 127.0.0.1 --port 8000 --reload
+dlp ide --host 127.0.0.1 --port 8001 --reload
 ```
 
 Por defecto, el IDE queda disponible en:
 
 ```text
-http://127.0.0.1:8000
+http://127.0.0.1:8001
 ```
 
 Pruebas:

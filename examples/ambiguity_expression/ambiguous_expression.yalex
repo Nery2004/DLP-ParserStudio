@@ -1,0 +1,6 @@
+NUMBER    [0-9]+
+PLUS      \+
+TIMES     \*
+LPAREN    \(
+RPAREN    \)
+WS        [ \t\r\n]+  skip

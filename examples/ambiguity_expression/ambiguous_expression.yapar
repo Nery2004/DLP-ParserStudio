@@ -1,0 +1,9 @@
+%token NUMBER PLUS TIMES LPAREN RPAREN
+%ignore WS
+%start expr
+
+%%
+expr : expr PLUS expr
+     | expr TIMES expr
+     | LPAREN expr RPAREN
+     | NUMBER ;

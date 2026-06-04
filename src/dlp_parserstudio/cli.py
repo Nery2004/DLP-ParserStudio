@@ -26,7 +26,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Inicia el IDE web local de DLP-ParserStudio.",
     )
     ide_parser.add_argument("--host", default="127.0.0.1", help="Host del servidor.")
-    ide_parser.add_argument("--port", default=8000, type=int, help="Puerto del servidor.")
+    ide_parser.add_argument("--port", default=8001, type=int, help="Puerto del servidor.")
     ide_parser.add_argument(
         "--reload",
         action="store_true",

@@ -213,6 +213,8 @@ def test_create_ide_app_exposes_expected_routes() -> None:
 
     assert "/" in paths
     assert "/api/analyze" in paths
+    assert "/api/disambiguate" in paths
+    assert "/api/disambiguate/resolve" in paths
 
 
 def test_ide_html_exposes_only_required_parser_methods() -> None:
@@ -224,6 +226,9 @@ def test_ide_html_exposes_only_required_parser_methods() -> None:
     assert "<option>LALR(1)</option>" in html
     assert 'id="automaton-title"' in html
     assert 'id="lexicon-text"' in html
+    assert 'id="disambiguate-button"' in html
+    assert 'id="auto-resolve-button"' in html
+    assert 'id="disambiguation-output"' in html
 
 
 def test_ide_frontend_classifies_error_types() -> None:
@@ -239,5 +244,7 @@ def test_ide_frontend_classifies_error_types() -> None:
     assert ".errors-empty-success" in styles
     assert "function getResultStatus" in app_js
     assert "function getAutomatonTitle" in app_js
+    assert "function runAutoResolve" in app_js
     assert ".cell-conflict" in styles
     assert ".state-tag" in styles
+    assert ".resolve-button" in styles

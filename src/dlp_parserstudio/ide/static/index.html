@@ -26,6 +26,8 @@
           </select>
         </label>
         <button id="run-button" class="run-button" type="button">Ejecutar</button>
+        <button id="disambiguate-button" class="suggestion-button" type="button">Sugerir</button>
+        <button id="auto-resolve-button" class="resolve-button" type="button">Resolver automáticamente</button>
       </div>
     </header>
 
@@ -127,6 +129,10 @@
         <article class="result-card">
           <h2>Ramas paralelas</h2>
           <div id="branches-output" class="branches-container" data-empty="Sin ramas paralelas para explorar."></div>
+        </article>
+        <article class="result-card disambiguation-card">
+          <h2>Resolución / sugerencias de desambiguación</h2>
+          <div id="disambiguation-output" class="suggestions-container" data-empty="Sin sugerencias de desambiguación."></div>
         </article>
         <article class="result-card translation-card">
           <h2>Traduccion</h2>

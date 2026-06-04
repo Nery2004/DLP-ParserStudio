@@ -20,6 +20,7 @@ factor : NUMBER | LPAREN expr RPAREN ;`,
 
 const state = {
   lastResult: null,
+  lastDisambiguation: null,
   treeView: "graph",
   automatonView: "graph",
 };
@@ -42,7 +43,8 @@ async function readFileInto(fileInputId, textareaId) {
   });
 }
 
-async function runAnalysis() {
+async function runAnalysis(options = {}) {
+  if (!options.keepDisambiguation) clearDisambiguation();
   setLoading(true);
 
   try {
@@ -69,6 +71,63 @@ async function runAnalysis() {
   } finally {
     setLoading(false);
   }
+}
+
+async function runDisambiguation() {
+  setDisambiguationLoading(true);
+
+  try {
+    const response = await fetch("/api/disambiguate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(disambiguationPayload()),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    state.lastDisambiguation = await response.json();
+    renderHTMLOrEmpty("disambiguation-output", renderDisambiguationPanel(state.lastDisambiguation));
+  } catch (error) {
+    renderHTMLOrEmpty("disambiguation-output", renderDisambiguationError(error));
+  } finally {
+    setDisambiguationLoading(false);
+  }
+}
+
+async function runAutoResolve() {
+  setResolveLoading(true);
+
+  try {
+    const response = await fetch("/api/disambiguate/resolve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(disambiguationPayload()),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const result = await response.json();
+    state.lastDisambiguation = result;
+
+    if (result.resolved && result.resolved_yapar) {
+      $("yapar-text").value = result.resolved_yapar;
+      renderHTMLOrEmpty("disambiguation-output", renderAutoResolutionPanel(result));
+      await runAnalysis({ keepDisambiguation: true });
+    } else {
+      renderHTMLOrEmpty("disambiguation-output", renderAutoResolutionPanel(result));
+    }
+  } catch (error) {
+    renderHTMLOrEmpty("disambiguation-output", renderDisambiguationError(error));
+  } finally {
+    setResolveLoading(false);
+  }
+}
+
+function disambiguationPayload() {
+  return {
+    yapar_text: $("yapar-text").value,
+    method: $("method").value,
+    conflicts: (state.lastResult && state.lastResult.conflicts) || [],
+    parallel_branches: (state.lastResult && state.lastResult.parallel_branches) || [],
+  };
 }
 
 async function render(result) {
@@ -421,6 +480,69 @@ function renderBranches(branches, executor) {
   return html;
 }
 
+function renderDisambiguationPanel(data) {
+  if (!data || !data.suggestions || data.suggestions.length === 0) {
+    return `<div class="suggestion-empty">No se detectaron sugerencias para esta gramatica.</div>`;
+  }
+
+  let html = `<div class="suggestions-summary">${escapeHtml(data.summary || "Sugerencias disponibles.")}</div>`;
+  if (data.limitations) {
+    html += `<div class="suggestion-limit">${escapeHtml(data.limitations)}</div>`;
+  }
+
+  for (let i = 0; i < data.suggestions.length; i++) {
+    const suggestion = data.suggestions[i];
+    const confidence = String(suggestion.confidence || "medium").toLowerCase();
+    const grammar = suggestion.suggested_grammar || "";
+    html += `<section class="suggestion-card">`;
+    html += `<div class="suggestion-header">`;
+    html += `<h3>${escapeHtml(suggestion.title || "Sugerencia")}</h3>`;
+    html += `<div class="suggestion-meta">`;
+    html += `<span class="suggestion-kind">${escapeHtml(formatSuggestionKind(suggestion.kind))}</span>`;
+    html += `<span class="confidence-badge confidence-${escapeHtml(confidence)}">${escapeHtml(confidence)}</span>`;
+    html += `</div></div>`;
+    html += `<div class="suggestion-body">`;
+    html += `<p><span class="suggestion-label">Problema:</span> ${escapeHtml(suggestion.problem || "-")}</p>`;
+    html += `<p><span class="suggestion-label">Explicacion:</span> ${escapeHtml(suggestion.explanation || "-")}</p>`;
+    html += `<p><span class="suggestion-label">Recomendacion:</span> ${escapeHtml(suggestion.recommended_method || "-")}</p>`;
+    if (grammar) html += `<pre class="suggestion-grammar">${escapeHtml(grammar)}</pre>`;
+    html += `</div>`;
+    html += `<div class="suggestion-actions">`;
+    if (grammar) html += `<button class="suggestion-action-button" data-copy-suggestion="${i}" type="button">Copiar</button>`;
+    if (grammar && suggestion.can_apply) {
+      html += `<button class="suggestion-action-button apply" data-apply-suggestion="${i}" type="button">Aplicar al YAPar</button>`;
+    }
+    html += `</div></section>`;
+  }
+
+  return html;
+}
+
+function renderAutoResolutionPanel(data) {
+  const statusClass = data && data.resolved ? "auto-resolution-ok" : "auto-resolution-warn";
+  const title = data && data.resolved ? "Ambiguedad resuelta automaticamente" : "No se pudo resolver automaticamente";
+  let html = `<div class="${statusClass}"><strong>${title}</strong>`;
+  if (data && data.applied_suggestion) {
+    html += `<span>Se aplico: ${escapeHtml(data.applied_suggestion.title)}</span>`;
+  }
+  html += `</div>`;
+  html += renderDisambiguationPanel(data);
+  return html;
+}
+
+function renderDisambiguationError(error) {
+  return `<div class="suggestion-card"><div class="suggestion-body"><p><span class="suggestion-label">Error:</span> ${escapeHtml(String(error))}</p></div></div>`;
+}
+
+function formatSuggestionKind(kind) {
+  return String(kind || "suggestion").replace(/_/g, " ");
+}
+
+function clearDisambiguation() {
+  state.lastDisambiguation = null;
+  renderHTMLOrEmpty("disambiguation-output", null);
+}
+
 function renderParallelExecutor(executor) {
   if (!executor || executor.type === "none") return "";
   let html = `<div class="parallel-executor">`;
@@ -750,10 +872,30 @@ function renderError(error) {
 
 function setLoading(isLoading) {
   const runButton = $("run-button");
+  const disambiguateButton = $("disambiguate-button");
+  const resolveButton = $("auto-resolve-button");
   document.body.classList.toggle("loading", isLoading);
   runButton.classList.toggle("loading", isLoading);
   runButton.disabled = isLoading;
   runButton.textContent = isLoading ? "Analizando..." : "Ejecutar";
+  if (disambiguateButton) disambiguateButton.disabled = isLoading;
+  if (resolveButton) resolveButton.disabled = isLoading;
+}
+
+function setDisambiguationLoading(isLoading) {
+  const button = $("disambiguate-button");
+  document.body.classList.toggle("loading", isLoading);
+  button.classList.toggle("loading", isLoading);
+  button.disabled = isLoading;
+  button.textContent = isLoading ? "Revisando..." : "Sugerir";
+}
+
+function setResolveLoading(isLoading) {
+  const button = $("auto-resolve-button");
+  document.body.classList.toggle("loading", isLoading);
+  button.classList.toggle("loading", isLoading);
+  button.disabled = isLoading;
+  button.textContent = isLoading ? "Resolviendo..." : "Resolver automáticamente";
 }
 
 function initEmptyOutputs() {
@@ -795,6 +937,48 @@ function wireDownloads() {
   });
 }
 
+function wireDisambiguationActions() {
+  $("disambiguation-output").addEventListener("click", async (event) => {
+    const target = event.target.closest("button");
+    if (!target || !state.lastDisambiguation) return;
+
+    if (target.dataset.copySuggestion !== undefined) {
+      const suggestion = state.lastDisambiguation.suggestions[Number(target.dataset.copySuggestion)];
+      await copyToClipboard(suggestion && suggestion.suggested_grammar);
+      target.textContent = "Copiado";
+      window.setTimeout(() => {
+        target.textContent = "Copiar";
+      }, 1200);
+      return;
+    }
+
+    if (target.dataset.applySuggestion !== undefined) {
+      const suggestion = state.lastDisambiguation.suggestions[Number(target.dataset.applySuggestion)];
+      if (!suggestion || !suggestion.suggested_grammar) return;
+      const confirmed = window.confirm("Esto reemplazara el YAPar actual. No se ejecutara automaticamente.");
+      if (confirmed) $("yapar-text").value = suggestion.suggested_grammar;
+    }
+  });
+}
+
+async function copyToClipboard(text) {
+  if (!text) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
+}
+
 function downloadTextFile(filename, content) {
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -816,7 +1000,10 @@ function boot() {
   readFileInto("lexicon-file", "lexicon-text");
   wireTabs();
   wireDownloads();
+  wireDisambiguationActions();
   $("run-button").addEventListener("click", runAnalysis);
+  $("disambiguate-button").addEventListener("click", runDisambiguation);
+  $("auto-resolve-button").addEventListener("click", runAutoResolve);
 }
 
 boot();
